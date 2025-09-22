@@ -1,0 +1,3 @@
+.adf-linter/
+.azure_migration/
+*__pycache__/

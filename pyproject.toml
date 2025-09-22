@@ -1,0 +1,8 @@
+[project]
+name = "factorylint"
+version = "0.1.0"
+dependencies = ["click"]
+
+[project.scripts]
+factorylint = "factorylint.cli:cli"
+
