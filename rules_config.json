@@ -6,8 +6,14 @@
         }
     },
     "Trigger": {
-        "ScheduleTrigger": "^Daily|Hourly|Weekly|Monthly-.*",
-        "BlobEventsTrigger": "^File-.*"
+        "ScheduleTrigger": {
+                "allowed_prefixes": ["Daily-", "Hourly-", "Weekly-", "Monthly-"],
+                "pattern":"^Daily|Hourly|Weekly|Monthly-.*"
+        },
+        "BlobEventsTrigger": {
+            "allowed_prefixes": ["File-"],
+            "pattern": "^File-.*"
+        }
     },
     "LinkedService": {
         "prefix": "LS_",

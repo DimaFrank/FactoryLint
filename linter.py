@@ -5,57 +5,52 @@ from enum import Enum
 
 # Example abbreviation mapping for datasets and linked services
 
-with open("system_abbreviations.json") as f:
-    abbreviation = json.load(f)
-
-ABBREVIATIONS = {
-    "LinkedService": [entry["Abbreviation"] for entry in abbreviation["LinkedService"]],
-    "Dataset": [entry["Abbreviation"] for entry in abbreviation["Dataset"]],
-}
-
-FORMAT_MAPPING = {
-    "DelimitedText": "CSV",
-    "AzureSqlTable": "TABLE",
-    "Parquet": "PARQUET",
-    "Json": "JSON",
-    "Excel": "EXCEL",
-    "Avro": "AVRO",
-    "Binary": "BIN",
-    "XML": "XML",
-    "Orc": "ORC"
-}
+with open("rules_config.json") as f:
+    rules_config = json.load(f)
 
 
-def lint_linked_service(ls_name: str) -> list:
+def lint_linked_service(ls_name: str, config: dict) -> list:
     errors = []
-    if not ls_name.startswith("LS_"):
-        errors.append("Linked Service must start with 'LS_'")
-    if not any(ls_name.startswith(prefix) for prefix in ABBREVIATIONS["LinkedService"]):
-        errors.append(f"Linked Service '{ls_name}' does not match known prefixes")
+    rules = config["LinkedService"]
+
+    if not ls_name.startswith(rules["prefix"]):
+        errors.append(f"Linked Service must start with '{rules['prefix']}'")
+
+    allowed_abbreviations = [rule['Abbreviation'] for rule in rules['allowed_abbreviations']]
+
+    if not any(ls_name.startswith(abbreviation) for abbreviation in allowed_abbreviations):
+        errors.append(f"Linked Service '{ls_name}' does not match allowed prefixes")
+
     return errors
 
 
-def lint_dataset(ds_name: str, dataset_type: str) -> list:
+def lint_dataset(ds_name: str, dataset_type: str, config: dict ) -> list:
     errors = []
-    if not ds_name.startswith("DS_"):
-        errors.append("Dataset must start with 'DS_'")
+    rules = config["Dataset"]
+
+    if not ds_name.startswith(rules["prefix"]):
+        errors.append(f"Dataset must start with '{rules['prefix']}'")
     # Check FORMAT suffix
-    expected_format = FORMAT_MAPPING.get(dataset_type)
+    allowed_formats = rules["formats"]
+
+    expected_format = allowed_formats.get(dataset_type)
     if expected_format and not ds_name.endswith(f"_{expected_format}"):
         errors.append(f"Dataset '{ds_name}' must end with format suffix '_{expected_format}'")
     # Uppercase and allowed chars
-    detail_part = "_".join(ds_name.split("_")[2:-1])  # remove prefix and format
-    if not re.match(r"^[A-Z0-9_]+$", detail_part):
+    detail_part = "_".join(ds_name.split("_")[2:-1]) 
+    
+    if not re.match(rules["allowed_chars"], detail_part):
         errors.append(f"Dataset detail part '{detail_part}' must be uppercase letters, numbers or underscores only")
     return errors
 
 
-def lint_pipeline(pipeline_name: str) -> list:
+def lint_pipeline(pipeline_name: str, config: dict) -> list:
     errors = []
+    rules = config["Pipeline"]
 
     # Regex patterns
-    master_pattern = r"^\d{3}_00_Master(_[A-Za-z0-9_]+)?_[A-Za-z0-9_]+$"
-    sub_pattern = r"^\d{3}_(0[1-9]|[1-9][0-9])(_[A-Za-z0-9_]+)?_[A-Za-z0-9_]+$"
+    master_pattern = rules["patterns"]["master"]
+    sub_pattern = rules["patterns"]["sub"]
 
     if re.match(master_pattern, pipeline_name):
         # This is a master pipeline, valid
@@ -71,13 +66,26 @@ def lint_pipeline(pipeline_name: str) -> list:
     return errors
 
 
-def lint_trigger(trigger_name: str, trigger_type: str) -> list:
+class ADFTriggerType(Enum):
+    SCHEDULE = "ScheduleTrigger"
+    BLOB_EVENTS = "BlobEventsTrigger"
+    UNKNOWN = "Unknown"
+
+
+def lint_trigger(trigger_name: str, trigger_type: str, config: dict) -> list:
     errors = []
-    if trigger_type == "ScheduleTrigger" and not trigger_name.startswith(("Daily-", "Hourly-", "Weekly-", "Monthly-")):
-        errors.append(f"Scheduled trigger '{trigger_name}' must start with frequency (Daily/Hourly/Weekly/Monthly)")
-    if trigger_type == "BlobEventsTrigger" and not trigger_name.startswith("File-"):
-        errors.append(f"File trigger '{trigger_name}' must start with 'File-'")
-    # Check ProjectName and PipelineName in trigger
+    rules = config["Trigger"]
+
+    if trigger_type == ADFTriggerType.SCHEDULE.value and not trigger_name.startswith(tuple(rules[ADFTriggerType.SCHEDULE.value]["allowed_prefixes"])):
+        errors.append(
+            f"Scheduled trigger '{trigger_name}' must start with frequency ({'/'.join(rules[ADFTriggerType.SCHEDULE.value]['allowed_prefixes'])})"
+        )
+
+    if trigger_type == ADFTriggerType.BLOB_EVENTS.value and not trigger_name.startswith(tuple(rules[ADFTriggerType.BLOB_EVENTS.value]["allowed_prefixes"])):
+        errors.append(
+            f"File trigger '{trigger_name}' must start with '{'/'.join(rules[ADFTriggerType.BLOB_EVENTS.value]['allowed_prefixes'])}'"
+        )
+
     try:
         project_name = trigger_name.split('-')[1]
         pipeline_name = trigger_name.split('-')[-1]
@@ -88,13 +96,6 @@ def lint_trigger(trigger_name: str, trigger_type: str) -> list:
     pattern = rf"^(Daily|Hourly|Weekly|Monthly|File)-{project_name}-{pipeline_name}$"
     if not re.match(pattern, trigger_name):
         errors.append(f"Trigger '{trigger_name}' does not match required pattern '{pattern}'")
-    return errors
-
-
-def lint_key_vault(kv_name: str, kv_type: str) -> list:
-    errors = []
-    if kv_type.lower() not in ["username", "password", "url"]:
-        errors.append(f"Key Vault '{kv_name}' type '{kv_type}' is invalid. Must be username/password/url")
     return errors
 
 
@@ -144,15 +145,16 @@ def lint_resource(resource_json: dict):
     
     match resource_type:
         case ADFResourceType.PIPELINE:
-            return lint_pipeline(resource_json["name"])
+            return lint_pipeline(resource_json["name"], config=rules_config)
         case ADFResourceType.DATASET:
-            return lint_dataset(resource_json["name"], resource_json["properties"]["type"])
+            return lint_dataset(resource_json["name"], resource_json["properties"]["type"], config=rules_config)
         case ADFResourceType.LINKED_SERVICE:
-            return lint_linked_service(resource_json["name"])
+            return lint_linked_service(resource_json["name"], config=rules_config)
         case ADFResourceType.TRIGGER:
             return lint_trigger(
                 resource_json["name"],
-                resource_json["properties"]["type"]
+                resource_json["properties"]["type"],
+                config=rules_config
             )
         case _:
             return [f"Unknown resource type for {resource_json.get('name', 'N/A')}"]
@@ -194,13 +196,37 @@ if __name__ == "__main__":
     # print(f"Total errors found so far: {total_counter}")
 
 
+    # print('-' * 40)
+
+    # total_counter = 0
+    # for pipeline in os.listdir("./.azure_migration/df-sgbi-general-dev/pipeline/"):
+    #     print(f"Processing pipeline: {pipeline}")
+
+    #     with open(f"./.azure_migration/df-sgbi-general-dev/pipeline/{pipeline}", encoding='utf-8') as f:
+    #         resource_json = json.load(f)
+
+    #         type = identify_adf_resource(resource_json)
+    #         print(f"Type: {type}")
+
+    #         errors = lint_resource(resource_json)
+    #         print(f"Errors found: {len(errors)}")
+    #         for i, error in enumerate(errors, start=1):
+    #             print(f"Error {i}: {error}")
+
+    #         total_counter += len(errors)
+
+    #     print('-' * 40)
+
+    # print(f"Total errors found so far: {total_counter}")
+
+
     print('-' * 40)
 
     total_counter = 0
-    for pipeline in os.listdir("./.azure_migration/df-sgbi-general-dev/pipeline/"):
-        print(f"Processing pipeline: {pipeline}")
+    for linked_service in os.listdir("./.azure_migration/df-sgbi-general-dev/linkedService/"):
+        print(f"Processing linked service: {linked_service}")
 
-        with open(f"./.azure_migration/df-sgbi-general-dev/pipeline/{pipeline}", encoding='utf-8') as f:
+        with open(f"./.azure_migration/df-sgbi-general-dev/linkedService/{linked_service}", encoding='utf-8') as f:
             resource_json = json.load(f)
 
             type = identify_adf_resource(resource_json)
@@ -218,13 +244,14 @@ if __name__ == "__main__":
     print(f"Total errors found so far: {total_counter}")
 
 
+    
     # print('-' * 40)
 
     # total_counter = 0
-    # for linked_service in os.listdir("./.azure_migration/df-sgbi-general-dev/linkedService/"):
-    #     print(f"Processing linked service: {linked_service}")
+    # for trigger in os.listdir("./.azure_migration/df-sgbi-general-dev/trigger/"):
+    #     print(f"Processing trigger: {trigger}")
 
-    #     with open(f"./.azure_migration/df-sgbi-general-dev/linkedService/{linked_service}", encoding='utf-8') as f:
+    #     with open(f"./.azure_migration/df-sgbi-general-dev/trigger/{trigger}", encoding='utf-8') as f:
     #         resource_json = json.load(f)
 
     #         type = identify_adf_resource(resource_json)
