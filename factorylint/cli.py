@@ -4,6 +4,7 @@ import json
 import glob
 from factorylint.core import linter
 from factorylint.core import config_validator
+import sys 
 
 DEFAULT_CONFIG_FILE = "./.adf-linter/rules_config.json"
 EXECUTIONS_RESULTS_FILE = "./.adf-linter/linter_results.json"
@@ -38,14 +39,15 @@ def init():
 @cli.command()
 @click.option("--config", "config_path", default=DEFAULT_CONFIG_FILE, show_default=True, help="Path to rules_config.json")
 @click.option("--resources", "resources_path", required=True, help="Path to resources folder (pipeline/, dataset/, linkedService/, trigger/)")
-def lint(config_path, resources_path):
+@click.pass_context
+def lint(ctx, config_path, resources_path):
     """
     Lint all ADF resources in a given path.
     """
     # --- Load config ---
     if not os.path.exists(config_path):
         click.secho(f"❌ Rules config file not found: {config_path}", fg="red")
-        return
+        ctx.exit(1)
 
     with open(config_path, "r", encoding="utf-8") as f:
         rules_config = json.load(f)
@@ -56,7 +58,7 @@ def lint(config_path, resources_path):
         click.secho("❌ Config validation failed:", fg="red", bold=True)
         for e in errors:
             click.secho(f" - {e}", fg="red")
-        return
+        ctx.exit(1)
 
     click.secho(f"✅ Using config: {config_path}", fg="green")
 
@@ -69,8 +71,8 @@ def lint(config_path, resources_path):
 
     if not resource_files:
         click.secho(f"⚠️  No JSON resources found under {resources_path} (only looking in {subfolders})", fg="yellow")
-        return
-    
+        ctx.exit(1)
+
     click.secho(f"🔍 Found {len(resource_files)} resources to lint", fg="cyan")
 
     all_results = {}
@@ -103,6 +105,7 @@ def lint(config_path, resources_path):
     if total_errors > 0:
         click.secho(f"❌ Linting completed with {total_errors} errors", fg="red", bold=True)
         click.secho(f"📄 Detailed report saved to {EXECUTIONS_RESULTS_FILE}", fg="yellow")
+        ctx.exit(1)
     else:
         click.secho("🎉 All resources passed linting!", fg="green", bold=True)
     click.secho("=" * 60, fg="cyan")
