@@ -1,4 +1,7 @@
+LICENSE
+README.md
 pyproject.toml
+factorylint/__init__.py
 factorylint/cli.py
 factorylint.egg-info/PKG-INFO
 factorylint.egg-info/SOURCES.txt
