@@ -1,4 +1,6 @@
-<img src="logo.png" alt="image info" width="700"/>
+<p align="left">
+  <img src="https://raw.githubusercontent.com/DimaFrank/FactoryLint/master/logo.png" alt="FactoryLint Logo" width="700"/>
+</p>
 
 # 🏭 FactoryLint
 
