@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: factorylint
-Version: 0.1.1
+Version: 0.1.2
 Summary: A CLI tool to lint Azure Data Factory resources for naming convention compliance
 Author-email: Dima Frank <dimafrank91@gmail.com>
 License: MIT License
