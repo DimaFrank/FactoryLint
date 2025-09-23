@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: factorylint
-Version: 0.1.2
+Version: 0.1.4
 Summary: A CLI tool to lint Azure Data Factory resources for naming convention compliance
 Author-email: Dima Frank <dimafrank91@gmail.com>
 License: MIT License
@@ -31,7 +31,9 @@ License-File: LICENSE
 Requires-Dist: click>=8.0.0
 Dynamic: license-file
 
-<img src="logo.png" alt="image info" width="700"/>
+<p align="left">
+  <img src="https://raw.githubusercontent.com/DimaFrank/FactoryLint/master/logo.png" alt="FactoryLint Logo" width="700"/>
+</p>
 
 # 🏭 FactoryLint
 
