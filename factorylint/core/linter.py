@@ -155,14 +155,14 @@ def lint_resource(resource_json: dict):
                 resource_json["name"],
                 resource_json["properties"]["type"],
                 config=rules_config
-            )
+            ) 
         case _:
             return [f"Unknown resource type for {resource_json.get('name', 'N/A')}"]
 
 
 
 # Example usage
-if __name__ == "__main__":
+# if __name__ == "__main__":
 
     # ls_errors = lint_linked_service("LS_ADLS_LZ_ONPREMIR")
     # ds_errors = lint_dataset("DS_SQL_CUSTOMERS_CSV", "DelimitedText")
@@ -220,28 +220,28 @@ if __name__ == "__main__":
     # print(f"Total errors found so far: {total_counter}")
 
 
-    print('-' * 40)
+    # print('-' * 40)
 
-    total_counter = 0
-    for linked_service in os.listdir("./.azure_migration/df-sgbi-general-dev/linkedService/"):
-        print(f"Processing linked service: {linked_service}")
+    # total_counter = 0
+    # for linked_service in os.listdir("./.azure_migration/df-sgbi-general-dev/linkedService/"):
+    #     print(f"Processing linked service: {linked_service}")
 
-        with open(f"./.azure_migration/df-sgbi-general-dev/linkedService/{linked_service}", encoding='utf-8') as f:
-            resource_json = json.load(f)
+    #     with open(f"./.azure_migration/df-sgbi-general-dev/linkedService/{linked_service}", encoding='utf-8') as f:
+    #         resource_json = json.load(f)
 
-            type = identify_adf_resource(resource_json)
-            print(f"Type: {type}")
+    #         type = identify_adf_resource(resource_json)
+    #         print(f"Type: {type}")
 
-            errors = lint_resource(resource_json)
-            print(f"Errors found: {len(errors)}")
-            for i, error in enumerate(errors, start=1):
-                print(f"Error {i}: {error}")
+    #         errors = lint_resource(resource_json)
+    #         print(f"Errors found: {len(errors)}")
+    #         for i, error in enumerate(errors, start=1):
+    #             print(f"Error {i}: {error}")
 
-            total_counter += len(errors)
+    #         total_counter += len(errors)
 
-        print('-' * 40)
+    #     print('-' * 40)
 
-    print(f"Total errors found so far: {total_counter}")
+    # print(f"Total errors found so far: {total_counter}")
 
 
     
