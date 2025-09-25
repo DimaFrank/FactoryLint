@@ -89,6 +89,14 @@ def lint(ctx, config_path, resources_path, fail_fast):
         with open(file, "r", encoding="utf-8") as f:
             try:
                 resource_json = json.load(f)
+    
+                if "properties" in resource_json:
+                    if "folder" in resource_json["properties"]:
+                        folder_name = resource_json["properties"]["folder"]['name']
+                        if "_Config" in folder_name:
+                            click.secho(f"⚠️  Skipping pipeline in ADF _Config folder: {file}", fg="yellow")
+                            continue
+
             except Exception as e:
                 click.secho(f"❌ Failed to parse {file}: {e}", fg="red")
                 continue
