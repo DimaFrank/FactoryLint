@@ -1,7 +1,5 @@
 import yaml
-from dataset_validator import DatasetValidator
-from pipeline_validator import PipelineValidator
-
+from factorylint.core.validators import DatasetValidator, PipelineValidator
 
 if __name__ == "__main__":
     rules = yaml.safe_load(open("config.yml"))
