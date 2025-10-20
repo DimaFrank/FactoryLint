@@ -3,21 +3,25 @@
         "patterns": {
             "master": "^\\d{3}_00_Master(_[A-Za-z0-9_]+)?_[A-Za-z0-9_]+$",
             "sub": "^\\d{3}_(0[1-9]|[1-9][0-9])(_[A-Za-z0-9_]+)?_[A-Za-z0-9_]+$"
-        }
+        },
+        "description_required": false
     },
     "Trigger": {
         "ScheduleTrigger": {
                 "allowed_prefixes": ["Daily-", "Hourly-", "Weekly-", "Monthly-"],
-                "pattern":"^Daily|Hourly|Weekly|Monthly-.*"
+                "pattern":"^Daily|Hourly|Weekly|Monthly-.*",
+                "description_required": false
         },
         "BlobEventsTrigger": {
             "allowed_prefixes": ["File-"],
-            "pattern": "^File-.*"
+            "pattern": "^File-.*",
+            "description_required": false
         }
     },
     "LinkedService": {
         "prefix": "LS_",
         "patterns": [],
+        "description_required": false,
         "allowed_abbreviations": [
                     {"Type": "Azure", "Service": "Azure Blob Storage", "Abbreviation": "LS_ABLB_"},
                     {"Type": "Azure", "Service": "Azure Cosmos DB SQL API", "Abbreviation": "LS_ACSA_"},
@@ -106,6 +110,7 @@
     "Dataset": {
         "prefix": "DS_",
         "patterns": [],
+        "description_required": false,
         "formats": {
                 "DelimitedText": "CSV",
                 "AzureSqlTable": "TABLE",

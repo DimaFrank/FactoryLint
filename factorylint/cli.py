@@ -4,6 +4,7 @@ import json
 import glob
 from factorylint.core import linter
 from factorylint.core import config_validator
+from factorylint.core.linter import ADFResourceType
 import sys 
 
 DEFAULT_CONFIG_FILE = "./.adf-linter/rules_config.json"
@@ -84,6 +85,8 @@ def lint(ctx, config_path, resources_path, fail_fast):
 
     all_results = {}
     total_errors = 0
+    resource_count = {rtype.value: 0 for rtype in ADFResourceType if rtype != ADFResourceType.UNKNOWN}
+    errors_count = {rtype.value: 0 for rtype in ADFResourceType if rtype != ADFResourceType.UNKNOWN}
 
     for file in resource_files:
         with open(file, "r", encoding="utf-8") as f:
@@ -101,8 +104,12 @@ def lint(ctx, config_path, resources_path, fail_fast):
                 click.secho(f"❌ Failed to parse {file}: {e}", fg="red")
                 continue
 
+        resource_type = linter.identify_adf_resource(resource_json)
+        resource_count[resource_type.value] += 1
+
         errors = linter.lint_resource(resource_json)
         if errors:
+            errors_count[resource_type.value] += len(errors)
             click.secho(f"\n❌ {file}", fg="red", bold=True)
             for err in errors:
                 click.secho(f"   - {err}", fg="red")
@@ -119,10 +126,18 @@ def lint(ctx, config_path, resources_path, fail_fast):
     click.secho("\n" + "=" * 60, fg="cyan")
     if total_errors > 0:
         click.secho(f"❌ Linting completed with {total_errors} errors", fg="red", bold=True)
-        click.secho(f"📄 Detailed report saved to {EXECUTIONS_RESULTS_FILE}", fg="yellow")
+        click.secho("\n📊 Lint Summary:", fg="blue", bold=True)
+        for rtype, count in resource_count.items():
+            color = "red" if errors_count[rtype] > 0 else "green"
+            click.secho(f"   - {rtype}s checked: {count} (errors: {errors_count[rtype]})", fg=color)
+        click.secho(f"📄 Detailed report saved to {EXECUTIONS_RESULTS_FILE}", fg="blue")
         if fail_fast:
             ctx.exit(1)
     else:
+        click.secho("\n📊 Lint Summary:", fg="blue", bold=True)
+        for rtype, count in resource_count.items():
+            color = "red" if errors_count[rtype] > 0 else "green"
+            click.secho(f"   - {rtype}s checked: {count} (errors: {errors_count[rtype]})", fg=color)
         click.secho("🎉 All resources passed linting!", fg="green", bold=True)
     click.secho("=" * 60, fg="cyan")
 

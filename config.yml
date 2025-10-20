@@ -1,0 +1,225 @@
+# ==========================================================
+#  Azure Data Factory Linter Configuration
+#  Each resource type has its own customizable naming rules
+# ==========================================================
+
+version: 1.5
+description: >
+  Enforces naming conventions and validation rules for Azure Data Factory resources.
+
+resources:
+
+  pipelines:
+    enabled: true
+    description: >
+      Pipelines must follow specific patterns depending on their type.
+      Master pipelines orchestrate others, while sub-pipelines perform detailed tasks.
+    types:
+      master:
+        naming:
+          pattern: "^\\d{3}_00_Master(_[A-Za-z0-9_]+)?_[A-Za-z0-9_]+$"
+          case: "mixed"
+          prefix: null
+          must_contain: "Master"
+          description: >
+            Master pipelines typically coordinate multiple sub-pipelines.
+            Example: 101_00_Master_Load_All or 005_00_Master_ETL_FullRun
+      sub:
+        naming:
+          pattern: "^\\d{3}_(0[1-9]|[1-9][0-9])(_[A-Za-z0-9_]+)?_[A-Za-z0-9_]+$"
+          case: "mixed"
+          prefix: null
+          description: >
+            Sub-pipelines handle specific logical units of work and are triggered by master pipelines.
+            Example: 101_01_Load_Customers or 101_02_Transform_Sales
+
+    # Optional global rules that apply to both types
+    general_rules:
+      description_required: false
+      enforce_unique_names: true
+      min_parts: 3
+
+
+  datasets:
+    enabled: true
+    naming:
+      prefix: "DS"
+      separator: "_"
+      case: "upper"
+      pattern: "^[A-Z0-9_]+$"
+      required_source_position: 2   # e.g. DS_<SOURCE>_DETAIL_<FORMAT>
+      allowed_source_abbreviations:
+        "Azure Blob Storage": ABLB
+        "Azure Cosmos DB SQL API": ACSA
+        "Azure Cosmos DB MongDB API": ACMA
+        "Azure Data Explorer": ADEX
+        "Azure Data Lake Storage Gen2": ADLS
+        "Azure Database for MariaDB": AMDB
+        "Azure Database for MySQL": AMYS
+        "Azure Database for PostgreSQL": APOS
+        "Azure File Storage": AFIL
+        "Azure Search": ASER
+        "Azure SQL Database": ASQL
+        "Azure SQL Database Managed Instance": ASQM
+        "Azure Synapse Analytics (formerly SQL DW)": ASDW
+        "Azure Table Storage": ATBL
+        "Azure DataBricks": ADBR
+        "Azure Cognitive Search": ACGS
+        "Azure Synapse Analytics": ASA
+        "SQL Server": SQL
+        "Oracle": ORAC
+        "Oracle Eloqua": ORAE
+        "Oracle Responsys": ORAR
+        "Oracle Service Cloud": ORSC
+        "MySQL": MYSQ
+        "DB2": DB2
+        "Teradata": TDAT
+        "PostgreSQL": POST
+        "Sybase": SYBA
+        "Cassandra": CASS
+        "MongoDB": MONG
+        "Amazon Redshift": ARED
+        "SAP Business Warehouse": SAPW
+        "SAP Cloud for Customer (C4C)": SAPC
+        "SAP Table": SAPT
+        "SAP HANA": HANA
+        "Drill": DRILL
+        "Google BigQuery": GBQ
+        "Greenplum": GRPL
+        "HBase": HBAS
+        "Hive": HIVE
+        "Apache Impala": IMPA
+        "Informix": INMI
+        "MariaDB": MDB
+        "Microsoft Access": MACS
+        "Netezza": NETZ
+        "Phoenix": PHNX
+        "Presto (Preview)": PRST
+        "Spark": SPRK
+        "Vertica": VERT
+        "Snowflake": SNWF
+        "MongoDB Atlas": MONG_ATLAS
+        "Amazon RDS for Oracle": RDSORAC
+        "Amazon RDS for SQL Server": RDSSQL
+        "File System": FILE
+        "HDFS": HDFS
+        "Amazon S3": AMS3
+        "FTP": FTP
+        "SFTP": SFTP
+        "Google Cloud Storage": GCS
+        "Oracle Cloud Storage": OCS
+        "Amazon S3 Compatible Storage": SMS3C
+        "Generic ODBC": ODBC
+        "Generic OData": ODAT
+        "Generic REST": REST
+        "Generic HTTP": HTTP
+        "Salesforce": SAFC
+        "Salesforce Service Cloud": SAFCSC
+        "Salesforce Marketing Cloud": SAFOMC
+        "GitHub": GITH
+        "Jira": JIRA
+        "Web Table (HTML)": WEBT
+        "Amazon Marketplace Web Service": AMSMWS
+        "Xero": XERO
+        "SharePoint Online List": SHAREPOINT
+        "ServiceNow": SERVICENOW
+        "Dynamics (Microsoft Dataverse)": DATAVERSE
+        "Dynamics 365": D365
+        "Dynamics AX": DAX
+        "Dynamics CRM": DCRM
+        "Microsoft 365": M365
+        "SAP ECC": SAPE
+      allowed_formats:
+        - CSV
+        - TABLE
+        - PARQUET
+        - JSON
+        - EXCEL
+        - AVRO
+        - BIN
+        - XML
+        - ORC
+      min_parts: 3
+      max_parts: 6
+    description: >
+      Dataset name structure:
+      DS_<SOURCE>_<DETAIL>_<FORMAT>
+      Example: DS_ADLS_CUSTOMERS_CSV
+
+  linked_services:
+    enabled: true
+    naming:
+      prefix: "LS_"
+      case: "upper"             # options: upper / lower / any
+      pattern: "^[A-Z0-9_]+$"
+      allowed_abbreviations:
+        - ADLS
+        - SQL
+        - KV
+        - HTTP
+        - REST
+        - SFTP
+        - BLOB
+        - SAP
+      min_parts: 2
+      max_parts: 5
+      separators: "_"
+    description: >
+      Linked Services must start with "LS_" followed by a valid abbreviation (e.g. ADLS, SQL)
+      and a descriptive suffix, all in uppercase.
+
+  triggers:
+    enabled: true
+    naming:
+      prefix: "TR_"
+      case: "upper"
+      pattern: "^[A-Z0-9_]+$"
+      min_parts: 2
+      allowed_types:
+        - SCHEDULE
+        - EVENT
+    description: >
+      Triggers must start with "TR_", followed by type or purpose (e.g. SCHEDULE, EVENT).
+
+  integration_runtimes:
+    enabled: true
+    naming:
+      prefix: "IR_"
+      case: "upper"
+      pattern: "^[A-Z0-9_]+$"
+      allowed_types:
+        - SHIR
+        - AZURE
+      min_parts: 2
+    description: >
+      Integration Runtime names must start with "IR_" and include runtime type (e.g. SHIR, AZURE).
+
+
+parameters:
+  enabled: false
+  types: 
+    global:
+      naming:
+        prefix: "p_"
+        case: "lower"
+        pattern: "^[a-z_][a-z0-9_]*$"
+      description: >
+        Parameters should use lowercase with underscores, prefixed by 'p_'.
+
+    local:
+      naming:
+        prefix: "p_"
+        case: "lower"
+        pattern: "^[a-z_][a-z0-9_]*$"
+      description: >
+        Local parameters should use lowercase with underscores, prefixed by 'p_'.
+
+
+variables:
+  enabled: false
+  naming:
+    prefix: "v_"
+    case: "lower"
+    pattern: "^[a-z_][a-z0-9_]*$"
+  description: >
+    Variables should use lowercase with underscores, prefixed by 'v_'.

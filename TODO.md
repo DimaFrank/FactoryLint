@@ -57,7 +57,7 @@ Example:
 ```
 
 
-### 4. Add Summary by Resource Type
+### 4. Add Summary by Resource Type (DONE)
 
 Provide aggregated stats at the end of linting.
 

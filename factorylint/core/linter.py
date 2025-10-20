@@ -62,7 +62,7 @@ def lint_pipeline(pipeline_name: str, config: dict) -> list:
             errors.append(f"Sub-pipeline '{pipeline_name}' should not include 'Master' in its name")
     else:
         errors.append(f"Pipeline '{pipeline_name}' must follow naming conventions for Master or Sub-pipelines")
-    
+
     return errors
 
 
@@ -141,8 +141,8 @@ def identify_adf_resource(resource_json: dict) -> ADFResourceType:
 
 def lint_resource(resource_json: dict):
     resource_type = identify_adf_resource(resource_json)
-    print(resource_type)
-    
+    print(f"Resource type: {resource_type}")
+
     match resource_type:
         case ADFResourceType.PIPELINE:
             return lint_pipeline(resource_json["name"], config=rules_config)
