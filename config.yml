@@ -139,8 +139,8 @@ resources:
         - BIN
         - XML
         - ORC
-      min_parts: 3
-      max_parts: 6
+      min_separated_parts: 1
+      max_separated_parts: 5
     description: >
       Dataset name structure:
       DS_<SOURCE>_<DETAIL>_<FORMAT>
@@ -161,8 +161,8 @@ resources:
         - SFTP
         - BLOB
         - SAP
-      min_parts: 2
-      max_parts: 5
+      min_separated_parts: 2
+      max_separated_parts: 5
       separators: "_"
     description: >
       Linked Services must start with "LS_" followed by a valid abbreviation (e.g. ADLS, SQL)
@@ -174,7 +174,8 @@ resources:
       prefix: "TR_"
       case: "upper"
       pattern: "^[A-Z0-9_]+$"
-      min_parts: 2
+      min_separated_parts: 2
+      max_separated_parts: 5
       allowed_types:
         - SCHEDULE
         - EVENT
@@ -190,7 +191,8 @@ resources:
       allowed_types:
         - SHIR
         - AZURE
-      min_parts: 2
+      min_separated_parts: 2
+      max_separated_parts: 5
     description: >
       Integration Runtime names must start with "IR_" and include runtime type (e.g. SHIR, AZURE).
 
