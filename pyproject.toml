@@ -9,7 +9,7 @@ authors = [
     { name="Dima Frank", email="dimafrank91@gmail.com" }
 ]
 dependencies = [
-    "click>=8.0.0"
+    "click>=8.0.0",
     "PyYAML>=6.0.3"
 ]
 
