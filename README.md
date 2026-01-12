@@ -4,92 +4,206 @@
 
 # 🏭 FactoryLint
 
-**FactoryLint** is a CLI tool to **lint your Azure Data Factory (ADF) resources** and ensure they follow consistent naming conventions. It checks **pipelines, datasets, linked services, and triggers**, and generates clear, visual reports.
+**FactoryLint** is a Python CLI tool for **linting Azure Data Factory (ADF) resources** to ensure they follow **consistent, enforceable naming conventions**.
+
+It validates **pipelines, datasets, linked services, and triggers** using a **fully configurable rules file**, making it ideal for **CI/CD pipelines (Azure DevOps, GitHub Actions)** and team-wide governance.
 
 ---
 
 ## ✨ Features
 
-- ✅ Lint ADF resources: **Pipeline, Dataset, Linked Service, Trigger**
-- ⚙️ Fully **customizable rules** via `rules_config.json`
-- 📊 **Visual error reports** in the terminal
-- 💾 Saves **JSON reports** for further inspection
-- 🛠 Easy CLI usage
+- ✅ Lint ADF resources:
+  - Pipelines
+  - Datasets
+  - Linked Services
+  - Triggers
+- ⚙️ **Fully configurable rules** via YAML or JSON
+- 🧠 Automatic **ADF resource type detection**
+- 📊 Clear, colorized **terminal output**
+- 💾 Machine-readable **JSON report output**
+- 🚀 Designed for **CI/CD usage**
+- 🛠 Simple, predictable CLI interface
 
 ---
 
 ## 📦 Installation
 
-Install FactoryLint via `pip`:
+### Install from PyPI
 
 ```bash
 pip install factorylint
 ```
 
-Or install locally for development:
-
+## Local development install
 ```bash
-git clone <repo-url>
+git clone https://github.com/DimaFrank/FactoryLint.git
 cd FactoryLint
 pip install -e .
 ```
 
-## 🚀 Usage
-Initialize FactoryLint
 
-Create the .adf-linter directory:
+## 🚀 Usage
+Initialize project (optional)
+
+Creates the .adf-linter directory used for repo
 ```bash
 factorylint init
 ```
-You’ll see a friendly welcome message and confirmation that the directory was created. 
 
 ## Lint ADF resources
-Lint all ADF resources in a folder, using the default or custom configuration:
+
+Run linting against a directory containing ADF resources.
 ```bash
-factorylint lint --resources /path/to/adf/resources
-```
-Specify a custom rules configuration:
-```bash
-factorylint lint --resources /path/to/adf/resources --config /path/to/rules_config.json
+factorylint lint --config ./config.yml --resources .
 ```
 
+| Option        | Description                                     |
+| ------------- | ----------------------------------------------- |
+| `--config`    | Path to rules configuration file (YAML or JSON) |
+| `--resources` | Root directory containing ADF resources         |
+| `--fail-fast` | Stop on first error                             |
+
+
+## 🗂 Expected Folder Structure
+
+FactoryLint automatically scans these subfolders under --resources:
+```text
+pipeline/
+dataset/
+linkedService/
+trigger/
+```
+Each folder may contain nested subdirectories.
 
 ## 📝 Configuration
-The **rules_config.json** file defines naming conventions for your ADF resources. You can edit this file to match your project standards. FactoryLint validates this file before linting.
 
-Example structure:
-```json
-{
-  "Pipeline": {
-    "patterns": {
-      "master": "^Master_.*$",
-      "sub": "^Sub_.*$"
-    }
-  },
-  "Dataset": {
-    "prefix": "DS_",
-    "formats": { "Parquet": "PARQ", "CSV": "CSV" },
-    "allowed_chars": "^[A-Z0-9_]+$",
-    "allowed_abbreviations": [
-      { "Type": "Azure", "Service": "Blob Storage", "Abbreviation": "ABLB" }
-    ]
-  }
-  // ... other rules
-}
+The configuration file defines naming and validation rules for each ADF resource type.
+
+Supported formats: YAML (.yml, .yaml) or JSON
+
+The config is validated before linting starts
+
+Invalid configs fail the run immediately (CI-safe)
+
+Example config.yml
+
+```yaml
+Pipeline:
+  enabled: true
+  general_rules:
+    min_parts: 3
+    description_required: false
+  types:
+    master:
+      naming:
+        prefix: "PL_M_"
+        case: upper
+        separator: "_"
+        pattern: "^PL_M_[A-Z0-9_]+$"
+    sub:
+      naming:
+        prefix: "PL_S_"
+        case: upper
+        separator: "_"
+        pattern: "^PL_S_[A-Z0-9_]+$"
+
+Dataset:
+  enabled: true
+  naming:
+    prefix: "DS_"
+    case: upper
+    separator: "_"
+    pattern: "^DS_[A-Z0-9_]+$"
+    min_separated_parts: 3
+    max_separated_parts: 6
+    allowed_formats:
+      - PARQ
+      - CSV
+    allowed_source_abbreviations:
+      AzureBlob: ABLB
+      ADLS: ADLS
+
+LinkedService:
+  enabled: true
+  naming:
+    prefix: "LS_"
+    case: upper
+    separator: "_"
+    min_separated_parts: 2
+    max_separated_parts: 4
+    allowed_abbreviations:
+      - ABLB
+      - ADLS
+
+Trigger:
+  enabled: true
+  naming:
+    prefix: "TR_"
+    case: upper
+    separator: "_"
+    min_separated_parts: 3
+    max_separated_parts: 5
+    allowed_types:
+      - SCH
+      - EVT
 ```
 
 
 ## 📊 Output
+Terminal output
 
-- Console: Colored, visual feedback for each resource 
-- JSON report: Saved by default in .adf-linter/linter_results.json
-
-Example: 
-```pgsql
+FactoryLint provides clear, colorized feedback:
+```text
 ❌ dataset/DS_INVALID_NAME.json
-   - Dataset detail part 'invalidName' must be uppercase letters, numbers or underscores only
-✅ pipeline/Master_ExamplePipeline.json passed
+   - Dataset 'DS_INVALID_NAME' does not match pattern '^DS_[A-Z0-9_]+$'
+✅ pipeline/PL_M_LOAD_CUSTOMERS.json
 ```
+
+
+## JSON report
+
+All linting errors are saved to:
+```text
+.adf-linter/linter_results.json
+```
+
+Example:
+```text
+{
+  "dataset/DS_INVALID_NAME.json": [
+    "Dataset 'DS_INVALID_NAME' does not match pattern '^DS_[A-Z0-9_]+$'"
+  ]
+}
+```
+
+## 🔁 CI/CD Usage (Azure DevOps example)
+```yaml
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.x'
+
+- script: |
+    pip install factorylint
+    factorylint lint --config ./config.yml --resources .
+  displayName: 'Run FactoryLint'
+```
+- Exit code 1 if errors are found
+
+- Perfect for gating PRs and enforcing standards
+
+
+## 🧠 Design Principles
+
+ - ❌ No hardcoded paths
+
+- ❌ No assumptions about project layout outside --resources
+
+- ✅ Fully installable CLI
+
+- ✅ Deterministic behavior in CI
+
+- ✅ Clear separation of CLI and core logic
+
 
 ## 📝 License
 

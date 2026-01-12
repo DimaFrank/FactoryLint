@@ -3,17 +3,11 @@ import os
 import json
 import glob
 import yaml
-import os
 from pathlib import Path
 
 from factorylint.core import linter
 from factorylint.core import config_validator
 from factorylint.core.linter import ADFResourceType
-
-
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_CONFIG_FILE = f"{PROJECT_ROOT}/config.yml"
-EXECUTIONS_RESULTS_FILE = f"{PROJECT_ROOT}/.adf-linter/linter_results.json"
 
 
 def load_config(path: str) -> dict:
@@ -34,23 +28,29 @@ def cli():
 
 @cli.command()
 def init():
-    dir_path = f"{PROJECT_ROOT}/.adf-linter"
-    os.makedirs(dir_path, exist_ok=True)
+    Path(".adf-linter").mkdir(exist_ok=True)
     click.secho("✅ Initialized .adf-linter directory", fg="green")
 
 
 @cli.command()
-@click.option("--config", "config_path", default=DEFAULT_CONFIG_FILE, show_default=True)
+@click.option("--config", "config_path", required=True)
 @click.option("--resources", "resources_path", required=True)
 @click.option("--fail-fast", is_flag=True)
 @click.pass_context
 def lint(ctx, config_path, resources_path, fail_fast):
+    """
+    Lint Azure Data Factory resources
+    """
 
-    if not os.path.exists(config_path):
+    config_path = Path(config_path).resolve()
+    resources_path = Path(resources_path).resolve()
+
+    if not config_path.exists():
         click.secho(f"❌ Config not found: {config_path}", fg="red")
         ctx.exit(1)
+
     try:
-        rules_config = load_config(config_path)
+        rules_config = load_config(str(config_path))
     except Exception as e:
         click.secho(f"❌ Failed to load config: {e}", fg="red")
         ctx.exit(1)
@@ -66,52 +66,60 @@ def lint(ctx, config_path, resources_path, fail_fast):
         ctx.exit(1)
 
     subfolders = ["pipeline", "dataset", "linkedService", "trigger"]
-    resource_files = []
+    resource_files: list[Path] = []
 
     for folder in subfolders:
         resource_files.extend(
-            glob.glob(os.path.join(resources_path, folder, "**", "*.json"), recursive=True)
+            resources_path.glob(f"{folder}/**/*.json")
         )
 
     if not resource_files:
         click.secho("⚠️ No resources found", fg="yellow")
         ctx.exit(0)
 
-    all_results = {}
+    all_results: dict = {}
     total_errors = 0
 
     resource_count = {
         r.value: 0 for r in ADFResourceType if r != ADFResourceType.UNKNOWN
     }
-     
-    for file in resource_files:
-        full_resource_path = os.path.join(PROJECT_ROOT, file)
-        
-        with open(full_resource_path, encoding="utf-8") as f:
-            try:
+
+    for file_path in resource_files:
+        try:
+            with open(file_path, encoding="utf-8") as f:
                 resource_json = json.load(f)
-            except Exception as e:
-                click.secho(f"❌ Failed to parse {file}: {e}", fg="red")
-                continue
+        except Exception as e:
+            click.secho(f"❌ Failed to parse {file_path}: {e}", fg="red")
+            continue
 
         resource_type = linter.identify_adf_resource(resource_json)
         resource_count[resource_type.value] += 1
 
-        errors = linter.lint_resource(full_resource_path, resource_type)
+        errors = linter.lint_resource(
+            resource_path=str(file_path),
+            resource_type=resource_type,
+            rules=rules_config,
+        )
+
+        relative_path = file_path.relative_to(resources_path)
 
         if errors:
             total_errors += len(errors)
-            all_results[file] = errors
-            click.secho(f"\n❌ {file}", fg="red", bold=True)
+            all_results[str(relative_path)] = errors
+
+            click.secho(f"\n❌ {relative_path}", fg="red", bold=True)
             for err in errors:
                 click.secho(f"   - {err}", fg="red")
+
             if fail_fast:
                 ctx.exit(1)
         else:
-            click.secho(f"✅ {file}", fg="green")
+            click.secho(f"✅ {relative_path}", fg="green")
 
-    os.makedirs(os.path.dirname(EXECUTIONS_RESULTS_FILE), exist_ok=True)
-    with open(EXECUTIONS_RESULTS_FILE, "w", encoding="utf-8") as f:
+    results_file = Path(".adf-linter/linter_results.json")
+    results_file.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(results_file, "w", encoding="utf-8") as f:
         json.dump(all_results, f, indent=2)
 
     click.secho("\n📊 Summary", fg="cyan", bold=True)
