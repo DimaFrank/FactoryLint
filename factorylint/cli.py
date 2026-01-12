@@ -2,104 +2,89 @@ import click
 import os
 import json
 import glob
+import yaml
+
 from factorylint.core import linter
 from factorylint.core import config_validator
 from factorylint.core.linter import ADFResourceType
-import sys 
 
-DEFAULT_CONFIG_FILE = "./.adf-linter/rules_config.json"
+
+DEFAULT_CONFIG_FILE = "./config.yml"
 EXECUTIONS_RESULTS_FILE = "./.adf-linter/linter_results.json"
+
+
+def load_config(path: str) -> dict:
+    with open(path, "r", encoding="utf-8") as f:
+        if path.endswith((".yml", ".yaml")):
+            return yaml.safe_load(f)
+        elif path.endswith(".json"):
+            return json.load(f)
+        else:
+            raise ValueError("Config must be .json, .yml or .yaml")
 
 
 @click.group()
 def cli():
-    """FactoryLint CLI - Validate your ADF resources against naming conventions"""
+    """FactoryLint CLI - Validate ADF resources naming conventions"""
     pass
 
 
 @cli.command()
 def init():
-    """Initialize the FactoryLint directory"""
-    dir_path = './.adf-linter'
-
-    if os.path.exists(dir_path):
-        click.secho(f"⚠️  Directory '{dir_path}' already exists.", fg='yellow')
-    else:
-        try:
-            os.mkdir(dir_path)
-            click.secho("=" * 60, fg='cyan')
-            click.secho("🎉 Welcome to FactoryLint! 🎉", fg='green', bold=True)
-            click.secho("Start your journey to perfect ADF naming conventions...", fg='blue')
-            click.secho("-" * 60, fg='cyan')
-            click.secho("📁 Directory '.adf-linter' created successfully.", fg='green')
-            click.secho("=" * 60, fg='cyan')
-        except Exception as e:
-            click.secho(f"❌ Failed to create directory: {e}", fg='red')
+    dir_path = "./.adf-linter"
+    os.makedirs(dir_path, exist_ok=True)
+    click.secho("✅ Initialized .adf-linter directory", fg="green")
 
 
 @cli.command()
-@click.option("--config", "config_path", default=DEFAULT_CONFIG_FILE, show_default=True, help="Path to rules_config.json")
-@click.option("--resources", "resources_path", required=True, help="Path to resources folder (pipeline/, dataset/, linkedService/, trigger/)")
-@click.option("--fail-fast", is_flag=True, help="Fail fast on first error")
+@click.option("--config", "config_path", default=DEFAULT_CONFIG_FILE, show_default=True)
+@click.option("--resources", "resources_path", required=True)
+@click.option("--fail-fast", is_flag=True)
 @click.pass_context
 def lint(ctx, config_path, resources_path, fail_fast):
-    """
-    Lint all ADF resources in a given path.
-    """
-    # --- Load config ---
     if not os.path.exists(config_path):
-        click.secho(f"❌ Rules config file not found: {config_path}", fg="red")
-        if fail_fast:
-            ctx.exit(1)
-        return
+        click.secho(f"❌ Config not found: {config_path}", fg="red")
+        ctx.exit(1)
 
-    with open(config_path, "r", encoding="utf-8") as f:
-        rules_config = json.load(f)
+    try:
+        rules_config = load_config(config_path)
+    except Exception as e:
+        click.secho(f"❌ Failed to load config: {e}", fg="red")
+        ctx.exit(1)
 
-    # --- Validate config ---
+    if not isinstance(rules_config, dict):
+        click.secho("❌ Config is empty or invalid", fg="red")
+        ctx.exit(1)
+
     errors = config_validator.validate_rules_config(rules_config)
     if errors:
-        click.secho("❌ Config validation failed:", fg="red", bold=True)
         for e in errors:
-            click.secho(f" - {e}", fg="red")
-        if fail_fast:
-            ctx.exit(1)
-        return
+            click.secho(f"❌ {e}", fg="red")
+        ctx.exit(1)
 
-    click.secho(f"✅ Using config: {config_path}", fg="green")
-
-    # --- Collect only relevant resources ---
     subfolders = ["pipeline", "dataset", "linkedService", "trigger"]
     resource_files = []
+
     for folder in subfolders:
-        path = os.path.join(resources_path, folder, "**", "*.json")
-        resource_files.extend(glob.glob(path, recursive=True))
+        resource_files.extend(
+            glob.glob(os.path.join(resources_path, folder, "**", "*.json"), recursive=True)
+        )
 
     if not resource_files:
-        click.secho(f"⚠️  No JSON resources found under {resources_path} (only looking in {subfolders})", fg="yellow")
-        if fail_fast:
-            ctx.exit(1)
-        return
-
-    click.secho(f"🔍 Found {len(resource_files)} resources to lint", fg="cyan")
+        click.secho("⚠️ No resources found", fg="yellow")
+        ctx.exit(0)
 
     all_results = {}
     total_errors = 0
-    resource_count = {rtype.value: 0 for rtype in ADFResourceType if rtype != ADFResourceType.UNKNOWN}
-    errors_count = {rtype.value: 0 for rtype in ADFResourceType if rtype != ADFResourceType.UNKNOWN}
+
+    resource_count = {
+        r.value: 0 for r in ADFResourceType if r != ADFResourceType.UNKNOWN
+    }
 
     for file in resource_files:
-        with open(file, "r", encoding="utf-8") as f:
+        with open(file, encoding="utf-8") as f:
             try:
                 resource_json = json.load(f)
-    
-                if "properties" in resource_json:
-                    if "folder" in resource_json["properties"]:
-                        folder_name = resource_json["properties"]["folder"]['name']
-                        if "_Config" in folder_name:
-                            click.secho(f"⚠️  Skipping pipeline in ADF _Config folder: {file}", fg="yellow")
-                            continue
-
             except Exception as e:
                 click.secho(f"❌ Failed to parse {file}: {e}", fg="red")
                 continue
@@ -107,39 +92,31 @@ def lint(ctx, config_path, resources_path, fail_fast):
         resource_type = linter.identify_adf_resource(resource_json)
         resource_count[resource_type.value] += 1
 
-        errors = linter.lint_resource(resource_json)
+        errors = linter.lint_resource(resource_json, rules_config)
         if errors:
-            errors_count[resource_type.value] += len(errors)
+            total_errors += len(errors)
+            all_results[file] = errors
             click.secho(f"\n❌ {file}", fg="red", bold=True)
             for err in errors:
                 click.secho(f"   - {err}", fg="red")
-            all_results[file] = errors
-            total_errors += len(errors)
+            if fail_fast:
+                ctx.exit(1)
         else:
-            click.secho(f"✅ {file} passed", fg="green")
+            click.secho(f"✅ {file}", fg="green")
 
-    # --- Save results ---
     os.makedirs(os.path.dirname(EXECUTIONS_RESULTS_FILE), exist_ok=True)
     with open(EXECUTIONS_RESULTS_FILE, "w", encoding="utf-8") as f:
         json.dump(all_results, f, indent=2)
 
-    click.secho("\n" + "=" * 60, fg="cyan")
-    if total_errors > 0:
-        click.secho(f"❌ Linting completed with {total_errors} errors", fg="red", bold=True)
-        click.secho("\n📊 Lint Summary:", fg="blue", bold=True)
-        for rtype, count in resource_count.items():
-            color = "red" if errors_count[rtype] > 0 else "green"
-            click.secho(f"   - {rtype}s checked: {count} (errors: {errors_count[rtype]})", fg=color)
-        click.secho(f"📄 Detailed report saved to {EXECUTIONS_RESULTS_FILE}", fg="blue")
-        if fail_fast:
-            ctx.exit(1)
-    else:
-        click.secho("\n📊 Lint Summary:", fg="blue", bold=True)
-        for rtype, count in resource_count.items():
-            color = "red" if errors_count[rtype] > 0 else "green"
-            click.secho(f"   - {rtype}s checked: {count} (errors: {errors_count[rtype]})", fg=color)
-        click.secho("🎉 All resources passed linting!", fg="green", bold=True)
-    click.secho("=" * 60, fg="cyan")
+    click.secho("\n📊 Summary", fg="cyan", bold=True)
+    for rtype, count in resource_count.items():
+        click.secho(f" - {rtype}: {count}")
+
+    if total_errors:
+        click.secho(f"\n❌ {total_errors} errors found", fg="red", bold=True)
+        ctx.exit(1)
+
+    click.secho("\n🎉 All resources passed linting!", fg="green", bold=True)
 
 
 if __name__ == "__main__":

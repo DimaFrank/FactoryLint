@@ -17,7 +17,7 @@ resources:
     types:
       master:
         naming:
-          pattern: "^\\d{3}_00_Master(_[A-Za-z0-9_]+)?_[A-Za-z0-9_]+$"
+          pattern: "^\\d{3}_(0[1-9]|[1-9][0-9])(_[A-Za-z0-9]+)*_[A-Za-z0-9]+$"
           case: "mixed"
           prefix: null
           must_contain: "Master"
@@ -35,7 +35,7 @@ resources:
 
     # Optional global rules that apply to both types
     general_rules:
-      description_required: false
+      description_required: true
       enforce_unique_names: true
       min_parts: 3
 
@@ -140,7 +140,7 @@ resources:
         - XML
         - ORC
       min_separated_parts: 1
-      max_separated_parts: 5
+      max_separated_parts: 4
     description: >
       Dataset name structure:
       DS_<SOURCE>_<DETAIL>_<FORMAT>
@@ -150,7 +150,7 @@ resources:
     enabled: true
     naming:
       prefix: "LS_"
-      case: "upper"             # options: upper / lower / any
+      case: "upper"  # options: upper / lower / any
       pattern: "^[A-Z0-9_]+$"
       allowed_abbreviations:
         - ADLS
@@ -163,7 +163,7 @@ resources:
         - SAP
       min_separated_parts: 2
       max_separated_parts: 5
-      separators: "_"
+      separator: "_"
     description: >
       Linked Services must start with "LS_" followed by a valid abbreviation (e.g. ADLS, SQL)
       and a descriptive suffix, all in uppercase.
@@ -172,6 +172,7 @@ resources:
     enabled: true
     naming:
       prefix: "TR_"
+      separator: "-"
       case: "upper"
       pattern: "^[A-Z0-9_]+$"
       min_separated_parts: 2
