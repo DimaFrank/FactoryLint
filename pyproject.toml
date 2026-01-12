@@ -1,6 +1,6 @@
 [project]
 name = "factorylint"  # The name on PyPI
-version = "0.1.7"
+version = "0.1.8"
 description = "A CLI tool to lint Azure Data Factory resources for naming convention compliance"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -10,6 +10,7 @@ authors = [
 ]
 dependencies = [
     "click>=8.0.0"
+    "PyYAML>=6.0.3"
 ]
 
 [project.scripts]
