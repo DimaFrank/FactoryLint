@@ -18,14 +18,20 @@ class BaseValidator:
         return json.dumps(self.rules, indent=4)
 
     def load_resource(self, resource_path: str) -> dict:
-        """Load resource from a YAML or JSON file"""
-        with open(resource_path, 'r') as file:
-            if resource_path.endswith('.yaml'):
-                return yaml.safe_load(file)
-            elif resource_path.endswith('.json'):
-                return json.load(file)
-            else:
-                raise ValueError(f"Unsupported file format: {resource_path}")
+        """Load resource from a YAML or JSON file (UTF-8 enforced)"""
+        try:
+            with open(resource_path, "r", encoding="utf-8") as file:
+                if resource_path.endswith((".yaml", ".yml")):
+                    return yaml.safe_load(file)
+                elif resource_path.endswith(".json"):
+                    return json.load(file)
+                else:
+                    raise ValueError(f"Unsupported file format: {resource_path}")
+        except UnicodeDecodeError as e:
+            raise ValueError(
+                f"File is not valid UTF-8: {resource_path}"
+            ) from e
+
 
 
 # =====================================================

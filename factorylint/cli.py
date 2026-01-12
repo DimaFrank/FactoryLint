@@ -3,14 +3,17 @@ import os
 import json
 import glob
 import yaml
+import os
+from pathlib import Path
 
 from factorylint.core import linter
 from factorylint.core import config_validator
 from factorylint.core.linter import ADFResourceType
 
 
-DEFAULT_CONFIG_FILE = "./config.yml"
-EXECUTIONS_RESULTS_FILE = "./.adf-linter/linter_results.json"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_CONFIG_FILE = f"{PROJECT_ROOT}/config.yml"
+EXECUTIONS_RESULTS_FILE = f"{PROJECT_ROOT}/.adf-linter/linter_results.json"
 
 
 def load_config(path: str) -> dict:
@@ -31,7 +34,7 @@ def cli():
 
 @cli.command()
 def init():
-    dir_path = "./.adf-linter"
+    dir_path = f"{PROJECT_ROOT}/.adf-linter"
     os.makedirs(dir_path, exist_ok=True)
     click.secho("✅ Initialized .adf-linter directory", fg="green")
 
@@ -42,10 +45,10 @@ def init():
 @click.option("--fail-fast", is_flag=True)
 @click.pass_context
 def lint(ctx, config_path, resources_path, fail_fast):
+
     if not os.path.exists(config_path):
         click.secho(f"❌ Config not found: {config_path}", fg="red")
         ctx.exit(1)
-
     try:
         rules_config = load_config(config_path)
     except Exception as e:
@@ -80,9 +83,11 @@ def lint(ctx, config_path, resources_path, fail_fast):
     resource_count = {
         r.value: 0 for r in ADFResourceType if r != ADFResourceType.UNKNOWN
     }
-
+     
     for file in resource_files:
-        with open(file, encoding="utf-8") as f:
+        full_resource_path = os.path.join(PROJECT_ROOT, file)
+        
+        with open(full_resource_path, encoding="utf-8") as f:
             try:
                 resource_json = json.load(f)
             except Exception as e:
@@ -92,7 +97,8 @@ def lint(ctx, config_path, resources_path, fail_fast):
         resource_type = linter.identify_adf_resource(resource_json)
         resource_count[resource_type.value] += 1
 
-        errors = linter.lint_resource(resource_json, rules_config)
+        errors = linter.lint_resource(full_resource_path, resource_type)
+
         if errors:
             total_errors += len(errors)
             all_results[file] = errors
