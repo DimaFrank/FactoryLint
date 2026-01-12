@@ -12,3 +12,5 @@ factorylint.egg-info/top_level.txt
 factorylint/core/__init__.py
 factorylint/core/config_validator.py
 factorylint/core/linter.py
+factorylint/core/resources.py
+factorylint/core/validators.py

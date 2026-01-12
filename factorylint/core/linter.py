@@ -2,102 +2,9 @@ import re
 import os
 import json
 from enum import Enum
-
-# Example abbreviation mapping for datasets and linked services
-
-with open("rules_config.json") as f:
-    rules_config = json.load(f)
-
-
-def lint_linked_service(ls_name: str, config: dict) -> list:
-    errors = []
-    rules = config["LinkedService"]
-
-    if not ls_name.startswith(rules["prefix"]):
-        errors.append(f"Linked Service must start with '{rules['prefix']}'")
-
-    allowed_abbreviations = [rule['Abbreviation'] for rule in rules['allowed_abbreviations']]
-
-    if not any(ls_name.startswith(abbreviation) for abbreviation in allowed_abbreviations):
-        errors.append(f"Linked Service '{ls_name}' does not match allowed prefixes")
-
-    return errors
-
-
-def lint_dataset(ds_name: str, dataset_type: str, config: dict ) -> list:
-    errors = []
-    rules = config["Dataset"]
-
-    if not ds_name.startswith(rules["prefix"]):
-        errors.append(f"Dataset must start with '{rules['prefix']}'")
-    # Check FORMAT suffix
-    allowed_formats = rules["formats"]
-
-    expected_format = allowed_formats.get(dataset_type)
-    if expected_format and not ds_name.endswith(f"_{expected_format}"):
-        errors.append(f"Dataset '{ds_name}' must end with format suffix '_{expected_format}'")
-    # Uppercase and allowed chars
-    detail_part = "_".join(ds_name.split("_")[2:-1]) 
-    
-    if not re.match(rules["allowed_chars"], detail_part):
-        errors.append(f"Dataset detail part '{detail_part}' must be uppercase letters, numbers or underscores only")
-    return errors
-
-
-def lint_pipeline(pipeline_name: str, config: dict) -> list:
-    errors = []
-    rules = config["Pipeline"]
-
-    # Regex patterns
-    master_pattern = rules["patterns"]["master"]
-    sub_pattern = rules["patterns"]["sub"]
-
-    if re.match(master_pattern, pipeline_name):
-        # This is a master pipeline, valid
-        pass
-    elif re.match(sub_pattern, pipeline_name):
-        # This is a sub-pipeline, valid
-        # Optionally: check it does NOT contain 'Master'
-        if "Master" in pipeline_name:
-            errors.append(f"Sub-pipeline '{pipeline_name}' should not include 'Master' in its name")
-    else:
-        errors.append(f"Pipeline '{pipeline_name}' must follow naming conventions for Master or Sub-pipelines")
-    
-    return errors
-
-
-class ADFTriggerType(Enum):
-    SCHEDULE = "ScheduleTrigger"
-    BLOB_EVENTS = "BlobEventsTrigger"
-    UNKNOWN = "Unknown"
-
-
-def lint_trigger(trigger_name: str, trigger_type: str, config: dict) -> list:
-    errors = []
-    rules = config["Trigger"]
-
-    if trigger_type == ADFTriggerType.SCHEDULE.value and not trigger_name.startswith(tuple(rules[ADFTriggerType.SCHEDULE.value]["allowed_prefixes"])):
-        errors.append(
-            f"Scheduled trigger '{trigger_name}' must start with frequency ({'/'.join(rules[ADFTriggerType.SCHEDULE.value]['allowed_prefixes'])})"
-        )
-
-    if trigger_type == ADFTriggerType.BLOB_EVENTS.value and not trigger_name.startswith(tuple(rules[ADFTriggerType.BLOB_EVENTS.value]["allowed_prefixes"])):
-        errors.append(
-            f"File trigger '{trigger_name}' must start with '{'/'.join(rules[ADFTriggerType.BLOB_EVENTS.value]['allowed_prefixes'])}'"
-        )
-
-    try:
-        project_name = trigger_name.split('-')[1]
-        pipeline_name = trigger_name.split('-')[-1]
-    except IndexError:
-        errors.append(f"Trigger '{trigger_name}' is not properly formatted")
-        return errors
-
-    pattern = rf"^(Daily|Hourly|Weekly|Monthly|File)-{project_name}-{pipeline_name}$"
-    if not re.match(pattern, trigger_name):
-        errors.append(f"Trigger '{trigger_name}' does not match required pattern '{pattern}'")
-    return errors
-
+from .validators import DatasetValidator, PipelineValidator, LinkedServiceValidator, TriggerValidator
+import yaml
+from pathlib import Path
 
 class ADFResourceType(Enum):
     PIPELINE = "Pipeline"
@@ -139,22 +46,31 @@ def identify_adf_resource(resource_json: dict) -> ADFResourceType:
     return ADFResourceType.UNKNOWN
 
 
-def lint_resource(resource_json: dict):
-    resource_type = identify_adf_resource(resource_json)
-    print(resource_type)
-    
+def lint_resource(resource_path: dict, resource_type: ADFResourceType):
+ 
+    rules = yaml.safe_load(open("config.yml"))
+
     match resource_type:
         case ADFResourceType.PIPELINE:
-            return lint_pipeline(resource_json["name"], config=rules_config)
+            pipeline_validator = PipelineValidator(rules)
+            pipeline_errors = pipeline_validator.validate(resource_path)
+            return pipeline_errors
+                
         case ADFResourceType.DATASET:
-            return lint_dataset(resource_json["name"], resource_json["properties"]["type"], config=rules_config)
+            dataset_validator = DatasetValidator(rules)
+            dataset_errors = dataset_validator.validate(resource_path)
+            return dataset_errors
+        
         case ADFResourceType.LINKED_SERVICE:
-            return lint_linked_service(resource_json["name"], config=rules_config)
+            linked_service_validator = LinkedServiceValidator(rules)
+            linked_service_errors = linked_service_validator.validate(resource_path)
+            return linked_service_errors
+
         case ADFResourceType.TRIGGER:
-            return lint_trigger(
-                resource_json["name"],
-                resource_json["properties"]["type"],
-                config=rules_config
-            ) 
+            trigger_validator = TriggerValidator(rules)
+            trigger_errors = trigger_validator.validate(resource_path)
+            return trigger_errors
+        
         case _:
+            return [f"Unknown resource type for {resource_path.get('name', 'N/A')}"]
             return [f"Unknown resource type for {resource_json.get('name', 'N/A')}"]
