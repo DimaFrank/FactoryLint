@@ -73,4 +73,3 @@ def lint_resource(resource_path: dict, resource_type: ADFResourceType):
         
         case _:
             return [f"Unknown resource type for {resource_path.get('name', 'N/A')}"]
-            return [f"Unknown resource type for {resource_json.get('name', 'N/A')}"]
