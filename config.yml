@@ -17,21 +17,30 @@ resources:
     types:
       master:
         naming:
-          pattern: "^\\d{3}_(0[1-9]|[1-9][0-9])(_[A-Za-z0-9]+)*_[A-Za-z0-9]+$"
+          pattern: "^\\d{3}_00_Master_[A-Z]+_[A-Z][a-z0-9]*(?:[A-Z][a-z0-9]*)*$"
           case: "mixed"
           prefix: null
           must_contain: "Master"
           description: >
-            Master pipelines typically coordinate multiple sub-pipelines.
-            Example: 101_00_Master_Load_All or 005_00_Master_ETL_FullRun
+            Master pipelines coordinate one or more sub-pipelines.
+            Naming pattern: <DDD>_00_Master_<PROJECT>_<PascalCaseName>
+            - <DDD>: 3-digit prefix
+            - <PROJECT>: uppercase project abbreviation (e.g., MES, SAP)
+            - <PascalCaseName>: descriptive name in PascalCase without underscores
+            Example: 001_00_Master_MES_IoTHourly or 002_00_Master_SAP_FullLoad
       sub:
         naming:
-          pattern: "^\\d{3}_(0[1-9]|[1-9][0-9])(_[A-Za-z0-9_]+)?_[A-Za-z0-9_]+$"
+          pattern: "^\\d{3}_(0[1-9]|[1-9][0-9])_[A-Z]+_[A-Z][a-z0-9]*(?:[A-Z][a-z0-9]*)*$"
           case: "mixed"
           prefix: null
           description: >
-            Sub-pipelines handle specific logical units of work and are triggered by master pipelines.
-            Example: 101_01_Load_Customers or 101_02_Transform_Sales
+            Sub-pipelines perform specific logical tasks and are triggered by master pipelines.
+            Naming pattern: <DDD>_<01–99>_<OptionalProject>_<PascalCaseName>
+            - <DDD>: 3-digit prefix
+            - <01–99>: 2-digit sub-pipeline number (01–99)
+            - <OptionalProject>: optional uppercase project abbreviation
+            - <PascalCaseName>: descriptive name in PascalCase without underscores
+            Example: 001_01_MES_SyncProductsToMediaBrief or 001_02_DataverseObjectsSync
 
     # Optional global rules that apply to both types
     general_rules:
@@ -39,9 +48,8 @@ resources:
       enforce_unique_names: true
       min_parts: 3
 
-
   datasets:
-    enabled: true
+    enabled: false
     naming:
       prefix: "DS"
       separator: "_"
@@ -123,7 +131,7 @@ resources:
         "Xero": XERO
         "SharePoint Online List": SHAREPOINT
         "ServiceNow": SERVICENOW
-        "Dynamics (Microsoft Dataverse)": DATAVERSE
+        "Dynamics (Microsoft Dataverse)": DATAV
         "Dynamics 365": D365
         "Dynamics AX": DAX
         "Dynamics CRM": DCRM
@@ -139,28 +147,34 @@ resources:
         - BIN
         - XML
         - ORC
-      min_separated_parts: 1
-      max_separated_parts: 4
+      min_separated_parts: 4
+      max_separated_parts: 8
     description: >
       Dataset name structure:
       DS_<SOURCE>_<DETAIL>_<FORMAT>
       Example: DS_ADLS_CUSTOMERS_CSV
 
   linked_services:
-    enabled: true
+    enabled: false
     naming:
       prefix: "LS_"
       case: "upper"  # options: upper / lower / any
       pattern: "^[A-Z0-9_]+$"
       allowed_abbreviations:
-        - ADLS
-        - SQL
-        - KV
+        - ADLS  # Azure Data Lake Storage Gen2
+        - ASQL  # Azure SQL Database
+        - SQL   # SQL Server
+        - KV    # Azure Key Vault
+        - BLOB  # Azure Blob Storage
+        - SAPT  # SAP Table
+        - FILE  # File System
+        - ADBR  # Azure Databricks
+        - FUNC  # Azure Function
+        - DATAV # Dataverse
+        - SERVICENOW
         - HTTP
         - REST
-        - SFTP
-        - BLOB
-        - SAP
+        - SFTP 
       min_separated_parts: 2
       max_separated_parts: 5
       separator: "_"
@@ -169,14 +183,14 @@ resources:
       and a descriptive suffix, all in uppercase.
 
   triggers:
-    enabled: true
+    enabled: false
     naming:
       prefix: "TR_"
-      separator: "-"
+      separator: "_"
       case: "upper"
       pattern: "^[A-Z0-9_]+$"
       min_separated_parts: 2
-      max_separated_parts: 5
+      max_separated_parts: 6
       allowed_types:
         - SCHEDULE
         - EVENT
@@ -184,7 +198,7 @@ resources:
       Triggers must start with "TR_", followed by type or purpose (e.g. SCHEDULE, EVENT).
 
   integration_runtimes:
-    enabled: true
+    enabled: false
     naming:
       prefix: "IR_"
       case: "upper"
@@ -197,7 +211,6 @@ resources:
     description: >
       Integration Runtime names must start with "IR_" and include runtime type (e.g. SHIR, AZURE).
 
-
 parameters:
   enabled: false
   types: 
@@ -208,7 +221,6 @@ parameters:
         pattern: "^[a-z_][a-z0-9_]*$"
       description: >
         Parameters should use lowercase with underscores, prefixed by 'p_'.
-
     local:
       naming:
         prefix: "p_"
@@ -216,7 +228,6 @@ parameters:
         pattern: "^[a-z_][a-z0-9_]*$"
       description: >
         Local parameters should use lowercase with underscores, prefixed by 'p_'.
-
 
 variables:
   enabled: false

@@ -135,7 +135,17 @@ class PipelineValidator(BaseValidator):
         self.general_rules = self.rules.get("general_rules", {})
         self.enabled = self.rules.get("enabled", True)
 
-    def validate(self, pipeline_file_path: str, pipeline_type: str = "sub") -> list:
+    def detect_pipeline_type(self, name: str) -> str:
+        """Detect pipeline type based on naming rules"""
+        master_rules = self.types_rules.get("master", {}).get("naming", {})
+        master_pattern = master_rules.get("pattern")
+
+        if master_pattern and re.match(master_pattern, name):
+            return "master"
+
+        return "sub"
+
+    def validate(self, pipeline_file_path: str) -> list:
 
         errors = []
         if not self.enabled:
@@ -144,6 +154,7 @@ class PipelineValidator(BaseValidator):
         pipeline = self.load_resource(pipeline_file_path)
         name = pipeline.get("name", "")
 
+        pipeline_type = self.detect_pipeline_type(name)
         # -----------------------
         # Type-specific rules
         # -----------------------
@@ -153,7 +164,7 @@ class PipelineValidator(BaseValidator):
         pattern = type_rules.get("pattern")
         if pattern and not re.match(pattern, name):
             errors.append(
-                f"Pipeline '{name}' does not match pattern for '{pipeline_type}' pipelines"
+                f"Pipeline '{name}' does not match pattern for sub or master pipelines"
             )
 
         # Must contain check
