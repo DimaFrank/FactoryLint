@@ -46,10 +46,12 @@ class DatasetValidator(BaseValidator):
         self.description = self.rules.get("description", "")
 
     def validate(self, dataset_file_path: str) -> list:
-        if not self.enabled:
-            return []
-
         errors = []
+        skipped = []
+
+        if not self.enabled:
+            return errors, skipped
+
         dataset = self.load_resource(dataset_file_path)
         name = dataset.get("name", "")
 
@@ -120,7 +122,7 @@ class DatasetValidator(BaseValidator):
                         f"Allowed: {list(allowed_sources.values())}"
                     )
 
-        return errors
+        return errors, skipped
 
 
 # =====================================================
@@ -142,19 +144,35 @@ class PipelineValidator(BaseValidator):
 
         if master_pattern and re.match(master_pattern, name):
             return "master"
-
         return "sub"
 
     def validate(self, pipeline_file_path: str) -> list:
 
         errors = []
+        skipped = []
         if not self.enabled:
-            return []
+            return errors, skipped
 
         pipeline = self.load_resource(pipeline_file_path)
         name = pipeline.get("name", "")
 
         pipeline_type = self.detect_pipeline_type(name)
+
+        ignore_folder = self.general_rules.get("ignore_folder")
+        folder_path = pipeline.get('properties', {}).get('folder', {}).get('name')
+        if ignore_folder and ignore_folder in folder_path:
+            skipped.append(name)
+            return errors, skipped
+        # -----------------------
+        # Description Requirement
+        # -----------------------
+        desc_required = self.general_rules.get("description_required", False)
+        description = pipeline.get("description")
+        if desc_required and (not description or not str(description).strip()):
+            errors.append(
+                f"Pipeline '{name}' must have a non-empty description"
+            )
+
         # -----------------------
         # Type-specific rules
         # -----------------------
@@ -192,13 +210,8 @@ class PipelineValidator(BaseValidator):
         prefix = type_rules.get("prefix")
         if prefix and not name.startswith(prefix):
             errors.append(f"Pipeline '{name}' must start with prefix '{prefix}'")
-            
-        # Description requirement
-        desc_required = self.general_rules.get("description_required", False)
-        if desc_required and not type_rules.get("description"):
-            errors.append(f"Pipeline '{name}' must have a description in config")
 
-        return errors
+        return errors, skipped
  
 
 # =====================================================
@@ -215,15 +228,17 @@ class LinkedServiceValidator(BaseValidator):
 
     def validate(self, linked_service_file_path: str) -> list[str]:
 
-        if not self.enabled:
-            return []
-        
         errors = []
+        skipped = []
+
+        if not self.enabled:
+            return errors, skipped
+    
         linked_service = self.load_resource(linked_service_file_path)
         name = linked_service.get("name", "")
 
         if not name:
-            return ["Linked Service name is missing"]
+            return ["Linked Service name is missing"], skipped
 
         # -----------------------
         # Prefix
@@ -276,7 +291,7 @@ class LinkedServiceValidator(BaseValidator):
                     f"Allowed: {allowed_abbr}"
                 )
 
-        return errors
+        return errors, skipped
     
 
 # =====================================================
@@ -291,15 +306,18 @@ class TriggerValidator(BaseValidator):
         self.enabled = self.rules.get("enabled", True)
 
     def validate(self, trigger_file_path: str) -> list[str]:
-        if not self.enabled:
-            return []
-
         errors = []
+        skipped = []
+
+        if not self.enabled:
+            return errors, skipped
+
         trigger = self.load_resource(trigger_file_path)
         name = trigger.get("name", "")
 
         if not name:
-            return ["Trigger name is missing"]
+            errors.append("Trigger name is missing")
+            return errors, skipped
 
         # -----------------------
         # Prefix
@@ -346,4 +364,4 @@ class TriggerValidator(BaseValidator):
                     f"Allowed: {allowed_types}"
                 )
 
-        return errors
+        return errors, skipped

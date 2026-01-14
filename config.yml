@@ -35,21 +35,22 @@ resources:
           prefix: null
           description: >
             Sub-pipelines perform specific logical tasks and are triggered by master pipelines.
-            Naming pattern: <DDD>_<01–99>_<OptionalProject>_<PascalCaseName>
+            Naming pattern: <DDD>_<01–99>_<PROJECT>_<PascalCaseName>
             - <DDD>: 3-digit prefix
             - <01–99>: 2-digit sub-pipeline number (01–99)
-            - <OptionalProject>: optional uppercase project abbreviation
+            - <OptionalProject>: uppercase project abbreviation (e.g., MES, SAP)
             - <PascalCaseName>: descriptive name in PascalCase without underscores
-            Example: 001_01_MES_SyncProductsToMediaBrief or 001_02_DataverseObjectsSync
+            Example: 001_01_MES_SyncProductsToMediaBrief or 001_02_Dataverse_ObjectsSync
 
     # Optional global rules that apply to both types
     general_rules:
       description_required: true
       enforce_unique_names: true
+      ignore_folder: "_Config"
       min_parts: 3
 
   datasets:
-    enabled: false
+    enabled: true
     naming:
       prefix: "DS"
       separator: "_"
@@ -155,7 +156,7 @@ resources:
       Example: DS_ADLS_CUSTOMERS_CSV
 
   linked_services:
-    enabled: false
+    enabled: true
     naming:
       prefix: "LS_"
       case: "upper"  # options: upper / lower / any
@@ -183,7 +184,7 @@ resources:
       and a descriptive suffix, all in uppercase.
 
   triggers:
-    enabled: false
+    enabled: true
     naming:
       prefix: "TR_"
       separator: "_"

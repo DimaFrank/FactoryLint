@@ -95,7 +95,7 @@ def lint(ctx, config_path, resources_path, fail_fast):
         resource_type = linter.identify_adf_resource(resource_json)
         resource_count[resource_type.value] += 1
 
-        errors = linter.lint_resource(
+        errors, skipped = linter.lint_resource(
             resource_path=str(file_path),
             resource_type=resource_type,
             rules=rules_config,
@@ -114,7 +114,10 @@ def lint(ctx, config_path, resources_path, fail_fast):
             if fail_fast:
                 ctx.exit(1)
         else:
+            for skipped_name in skipped:
+                click.secho(f"⚠️ Skipped {skipped_name} due to ignore_folder rule", fg="yellow")
             click.secho(f"✅ {relative_path}", fg="green")
+            
 
     results_file = Path(".adf-linter/linter_results.json")
     results_file.parent.mkdir(parents=True, exist_ok=True)
