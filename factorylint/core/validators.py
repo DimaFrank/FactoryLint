@@ -2,6 +2,7 @@ import yaml
 import json
 import re
 from factorylint.core.resources import ResourceType
+from typing import Tuple, List
 
 
 # =====================================================
@@ -45,7 +46,7 @@ class DatasetValidator(BaseValidator):
         self.enabled = self.rules.get("enabled", True)
         self.description = self.rules.get("description", "")
 
-    def validate(self, dataset_file_path: str) -> list:
+    def validate(self, dataset_file_path: str) -> Tuple[List[str], List[str]]:
         errors = []
         skipped = []
 
@@ -146,7 +147,7 @@ class PipelineValidator(BaseValidator):
             return "master"
         return "sub"
 
-    def validate(self, pipeline_file_path: str) -> list:
+    def validate(self, pipeline_file_path: str) -> Tuple[List[str], List[str]]:
 
         errors = []
         skipped = []
@@ -224,9 +225,8 @@ class LinkedServiceValidator(BaseValidator):
         super().__init__(ResourceType.LINKED_SERVICE, rules)
         self.naming = self.rules.get("naming", {})
         self.enabled = self.rules.get("enabled", True)
-        self.enabled = self.rules.get("enabled", True)
 
-    def validate(self, linked_service_file_path: str) -> list[str]:
+    def validate(self, linked_service_file_path: str) -> Tuple[List[str], List[str]]:
 
         errors = []
         skipped = []
@@ -305,7 +305,7 @@ class TriggerValidator(BaseValidator):
         self.naming = self.rules.get("naming", {})
         self.enabled = self.rules.get("enabled", True)
 
-    def validate(self, trigger_file_path: str) -> list[str]:
+    def validate(self, trigger_file_path: str) -> Tuple[List[str], List[str]]:
         errors = []
         skipped = []
 

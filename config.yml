@@ -3,7 +3,7 @@
 #  Each resource type has its own customizable naming rules
 # ==========================================================
 
-version: 1.10
+version: 1.11
 description: >
   Enforces naming conventions and validation rules for Azure Data Factory resources.
 

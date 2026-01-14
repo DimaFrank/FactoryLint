@@ -6,3 +6,4 @@ class ResourceType(enum.Enum):
     PIPELINE = "pipelines"
     TRIGGER = "triggers"
     INTEGRATION_RUNTIME = "integration_runtimes"
+    UNKNOWN = "unknown"
