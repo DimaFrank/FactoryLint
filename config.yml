@@ -164,13 +164,22 @@ resources:
       separator: "_"
       case: "upper"
       pattern: "^[A-Z0-9_]+$"
-      min_separated_parts: 2
-      max_separated_parts: 6
+      min_separated_parts: 4
+      max_separated_parts: 7
       allowed_types:
         - SCHEDULE
         - EVENT
+      allowed_frequencies:
+        - HOURLY
+        - DAILY
+        - NIGHTLY
+        - WEEKLY
+        - MONTHLY
+        - QUARTERLY
+        - REALTIME
     description: >
-      Triggers must start with "TR_", followed by type or purpose (e.g. SCHEDULE, EVENT).
+      Triggers must follow: TR_<TYPE>_<FREQUENCY>_<DESCRIPTION>
+      Example: TR_SCHEDULE_DAILY_MES_IOT
 
   integration_runtimes:
     enabled: false

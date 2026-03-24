@@ -394,4 +394,15 @@ class TriggerValidator(BaseValidator):
                     f"Allowed: {allowed_types}"
                 )
 
+        # -----------------------
+        # Allowed frequencies
+        # -----------------------
+        allowed_frequencies = self.naming.get("allowed_frequencies", [])
+        if allowed_frequencies and len(parts) > 2:
+            if parts[2] not in allowed_frequencies:
+                errors.append(
+                    f"Trigger '{name}' has invalid frequency '{parts[2]}'. "
+                    f"Allowed: {allowed_frequencies}"
+                )
+
         return errors, skipped
