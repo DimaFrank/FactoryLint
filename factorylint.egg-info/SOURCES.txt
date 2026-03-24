@@ -14,3 +14,8 @@ factorylint/core/config_validator.py
 factorylint/core/linter.py
 factorylint/core/resources.py
 factorylint/core/validators.py
+factorylint/tests/__init__.py
+factorylint/tests/test_cli.py
+factorylint/tests/test_config_validator.py
+factorylint/tests/test_linter.py
+factorylint/tests/test_validators.py

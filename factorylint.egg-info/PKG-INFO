@@ -40,7 +40,7 @@ Dynamic: license-file
 
 **FactoryLint** is a Python CLI tool for **linting Azure Data Factory (ADF) resources** to ensure they follow **consistent, enforceable naming conventions**.
 
-It validates **pipelines, datasets, linked services, and triggers** using a **fully configurable rules file**, making it ideal for **CI/CD pipelines (Azure DevOps, GitHub Actions)** and team-wide governance.
+It validates **pipelines, datasets, linked services, triggers, parameters, and variables** using a **fully configurable rules file**, making it ideal for **CI/CD pipelines (Azure DevOps, GitHub Actions)** and team-wide governance.
 
 ---
 
@@ -51,6 +51,8 @@ It validates **pipelines, datasets, linked services, and triggers** using a **fu
   - Datasets
   - Linked Services
   - Triggers
+  - Pipeline & Dataset Parameters
+  - Pipeline Variables
 - ⚙️ **Fully configurable rules** via YAML or JSON
 - 🧠 Automatic **ADF resource type detection**
 - 📊 Clear, colorized **terminal output**
@@ -88,7 +90,7 @@ factorylint init
 
 Run linting against a directory containing ADF resources.
 ```bash
-factorylint lint --config ./config.yml --resources .
+factorylint lint --config ./factorylint.yml --resources .
 ```
 
 | Option        | Description                                     |
@@ -119,67 +121,120 @@ The config is validated before linting starts
 
 Invalid configs fail the run immediately (CI-safe)
 
-Example config.yml
+The default config file name is `factorylint.yml`.
+
+All rules live under a top-level `resources:` key. Parameters and variables are configured at the top level.
+
+### Naming rules reference
+
+| Resource | Structure | Example |
+|---|---|---|
+| Pipeline | `PL_<PROJECT>_<ENTITY>_<ACTION>` | `PL_MES_ORDERS_INGEST` |
+| Dataset | `DS_<SOURCE>_<DETAIL...>_<FORMAT>` | `DS_ADLS_CUSTOMERS_PARQUET` |
+| Linked Service | `LS_<ABBR>_<DESCRIPTION...>` | `LS_ADLS_BRONZE` |
+| Trigger | `TR_<TYPE>_<FREQUENCY>_<DESCRIPTION...>` | `TR_SCHEDULE_DAILY_MES_IOT` |
+| Parameter | `p_<name>` (lowercase) | `p_start_date` |
+| Variable | `v_<name>` (lowercase) | `v_row_count` |
+
+### Example factorylint.yml
 
 ```yaml
-Pipeline:
-  enabled: true
-  general_rules:
-    min_parts: 3
-    description_required: false
-  types:
-    master:
-      naming:
-        prefix: "PL_M_"
-        case: upper
-        separator: "_"
-        pattern: "^PL_M_[A-Z0-9_]+$"
-    sub:
-      naming:
-        prefix: "PL_S_"
-        case: upper
-        separator: "_"
-        pattern: "^PL_S_[A-Z0-9_]+$"
+resources:
 
-Dataset:
+  pipelines:
+    enabled: true
+    naming:
+      prefix: "PL_"
+      case: "upper"
+      separator: "_"
+      pattern: "^PL_[A-Z0-9_]+$"
+      min_separated_parts: 4
+      max_separated_parts: 6
+      allowed_actions:
+        - INGEST
+        - TRANSFORM
+        - ORCHESTRATE
+        - LOAD
+        - COPY
+        - EXTRACT
+        - PROCESS
+      description_required: true
+      ignore_folder: "_Config"
+
+  datasets:
+    enabled: true
+    naming:
+      prefix: "DS"
+      separator: "_"
+      case: "upper"
+      pattern: "^[A-Z0-9_]+$"
+      required_source_position: 2
+      allowed_source_abbreviations:
+        "Azure Data Lake Storage Gen2": ADLS
+        "Azure SQL Database": ASQL
+        "SAP Table": SAPT
+        "File System": FILE
+      allowed_formats:
+        - CSV
+        - PARQUET
+        - TABLE
+        - JSON
+        - EXCEL
+        - AVRO
+        - BIN
+        - XML
+        - ORC
+      min_separated_parts: 4
+      max_separated_parts: 8
+
+  linked_services:
+    enabled: true
+    naming:
+      prefix: "LS_"
+      case: "upper"
+      pattern: "^[A-Z0-9_]+$"
+      separator: "_"
+      min_separated_parts: 2
+      max_separated_parts: 5
+      allowed_abbreviations:
+        - ADLS
+        - ASQL
+        - KV
+        - ADBR
+        - FILE
+
+  triggers:
+    enabled: true
+    naming:
+      prefix: "TR_"
+      separator: "_"
+      case: "upper"
+      pattern: "^[A-Z0-9_]+$"
+      min_separated_parts: 4
+      max_separated_parts: 7
+      allowed_types:
+        - SCHEDULE
+        - EVENT
+      allowed_frequencies:
+        - HOURLY
+        - DAILY
+        - NIGHTLY
+        - WEEKLY
+        - MONTHLY
+
+parameters:
   enabled: true
   naming:
-    prefix: "DS_"
-    case: upper
-    separator: "_"
-    pattern: "^DS_[A-Z0-9_]+$"
-    min_separated_parts: 3
-    max_separated_parts: 6
-    allowed_formats:
-      - PARQ
-      - CSV
-    allowed_source_abbreviations:
-      AzureBlob: ABLB
-      ADLS: ADLS
+    prefix: "p_"
+    case: "lower"
+    pattern: "^[a-z_][a-z0-9_]*$"
 
-LinkedService:
+variables:
   enabled: true
   naming:
-    prefix: "LS_"
-    case: upper
-    separator: "_"
-    min_separated_parts: 2
-    max_separated_parts: 4
-    allowed_abbreviations:
-      - ABLB
-      - ADLS
-
-Trigger:
-  enabled: true
-  naming:
-    prefix: "TR_"
-    case: upper
-    separator: "_"
-    min_separated_parts: 3
-    max_separated_parts: 5
-    allowed_types:
-      - SCH
-      - EVT
+    prefix: "v_"
+    case: "lower"
+    pattern: "^[a-z_][a-z0-9_]*$"
 ```
 
 
@@ -188,9 +243,11 @@ Terminal output
 
 FactoryLint provides clear, colorized feedback:
 ```text
-❌ dataset/DS_INVALID_NAME.json
-   - Dataset 'DS_INVALID_NAME' does not match pattern '^DS_[A-Z0-9_]+$'
-✅ pipeline/PL_M_LOAD_CUSTOMERS.json
+❌ pipeline/PL_MES_ORDERS_RUN.json
+   - Pipeline 'PL_MES_ORDERS_RUN' has invalid action 'RUN'. Allowed: ['INGEST', 'TRANSFORM', ...]
+   - Parameter 'StartDate' must start with prefix 'p_'
+✅ pipeline/PL_MES_ORDERS_INGEST.json
+✅ dataset/DS_ADLS_CUSTOMERS_PARQUET.json
 ```
 
 
@@ -202,10 +259,10 @@ All linting errors are saved to:
 ```
 
 Example:
-```text
+```json
 {
-  "dataset/DS_INVALID_NAME.json": [
-    "Dataset 'DS_INVALID_NAME' does not match pattern '^DS_[A-Z0-9_]+$'"
+  "pipeline/PL_MES_ORDERS_RUN.json": [
+    "Pipeline 'PL_MES_ORDERS_RUN' has invalid action 'RUN'. Allowed: ['INGEST', 'TRANSFORM', ...]"
   ]
 }
 ```
@@ -218,7 +275,7 @@ Example:
 
 - script: |
     pip install factorylint
-    factorylint lint --config ./config.yml --resources .
+    factorylint lint --config ./factorylint.yml --resources .
   displayName: 'Run FactoryLint'
 ```
 - Exit code 1 if errors are found
@@ -242,3 +299,4 @@ Example:
 ## 📝 License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
+
