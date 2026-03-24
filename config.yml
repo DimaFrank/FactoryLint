@@ -12,42 +12,16 @@ resources:
   pipelines:
     enabled: true
     description: >
-      Pipelines must follow specific patterns depending on their type.
-      Master pipelines orchestrate others, while sub-pipelines perform detailed tasks.
-    types:
-      master:
-        naming:
-          pattern: "^\\d{3}_00_Master_[A-Z]+_[A-Z][a-z0-9]*(?:[A-Z][a-z0-9]*)*$"
-          case: "mixed"
-          prefix: null
-          must_contain: "Master"
-          description: >
-            Master pipelines coordinate one or more sub-pipelines.
-            Naming pattern: <DDD>_00_Master_<PROJECT>_<PascalCaseName>
-            - <DDD>: 3-digit prefix
-            - <PROJECT>: uppercase project abbreviation (e.g., MES, SAP)
-            - <PascalCaseName>: descriptive name in PascalCase without underscores
-            Example: 001_00_Master_MES_IoTHourly or 002_00_Master_SAP_FullLoad
-      sub:
-        naming:
-          pattern: "^\\d{3}_(0[1-9]|[1-9][0-9])_[A-Z]+_[A-Z][a-z0-9]*(?:[A-Z][a-z0-9]*)*$"
-          case: "mixed"
-          prefix: null
-          description: >
-            Sub-pipelines perform specific logical tasks and are triggered by master pipelines.
-            Naming pattern: <DDD>_<01–99>_<PROJECT>_<PascalCaseName>
-            - <DDD>: 3-digit prefix
-            - <01–99>: 2-digit sub-pipeline number (01–99)
-            - <OptionalProject>: uppercase project abbreviation (e.g., MES, SAP)
-            - <PascalCaseName>: descriptive name in PascalCase without underscores
-            Example: 001_01_MES_SyncProductsToMediaBrief or 001_02_Dataverse_ObjectsSync
-
-    # Optional global rules that apply to both types
-    general_rules:
+      Pipelines must follow a consistent naming convention.
+    naming:
+      pattern: "^\\d{3}_\\d{2}_[A-Z]+_[A-Z][a-z0-9]*(?:[A-Z][a-z0-9]*)*$"
+      case: "mixed"
+      prefix: null
+      separator: "_"
+      min_separated_parts: 4
+      max_separated_parts: 6
       description_required: true
-      enforce_unique_names: true
       ignore_folder: "_Config"
-      min_parts: 3
 
   datasets:
     enabled: true

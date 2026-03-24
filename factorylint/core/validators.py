@@ -130,87 +130,75 @@ class DatasetValidator(BaseValidator):
 # Pipeline Validator
 # =====================================================
 class PipelineValidator(BaseValidator):
-    """Validate pipeline names, supporting master/sub types"""
+    """Validate pipeline names"""
 
     def __init__(self, rules: dict):
         super().__init__(ResourceType.PIPELINE, rules)
-        self.types_rules = self.rules.get("types", {})
-        self.general_rules = self.rules.get("general_rules", {})
+        self.naming = self.rules.get("naming", {})
         self.enabled = self.rules.get("enabled", True)
-
-    def detect_pipeline_type(self, name: str) -> str:
-        """Detect pipeline type based on naming rules"""
-        master_rules = self.types_rules.get("master", {}).get("naming", {})
-        master_pattern = master_rules.get("pattern")
-
-        if master_pattern and re.match(master_pattern, name):
-            return "master"
-        return "sub"
 
     def validate(self, pipeline_file_path: str) -> Tuple[List[str], List[str]]:
 
         errors = []
         skipped = []
+
         if not self.enabled:
             return errors, skipped
 
         pipeline = self.load_resource(pipeline_file_path)
         name = pipeline.get("name", "")
 
-        pipeline_type = self.detect_pipeline_type(name)
-
-        ignore_folder = self.general_rules.get("ignore_folder")
+        # -----------------------
+        # Ignore folder
+        # -----------------------
+        ignore_folder = self.naming.get("ignore_folder")
         folder_path = pipeline.get('properties', {}).get('folder', {}).get('name')
-        if ignore_folder and ignore_folder in folder_path:
+        if ignore_folder and folder_path and ignore_folder in folder_path:
             skipped.append(name)
             return errors, skipped
+
         # -----------------------
         # Description Requirement
         # -----------------------
-        desc_required = self.general_rules.get("description_required", False)
+        desc_required = self.naming.get("description_required", False)
         description = pipeline.get("description")
         if desc_required and (not description or not str(description).strip()):
-            errors.append(
-                f"Pipeline '{name}' must have a non-empty description"
-            )
+            errors.append(f"Pipeline '{name}' must have a non-empty description")
 
         # -----------------------
-        # Type-specific rules
+        # Pattern
         # -----------------------
-        type_rules = self.types_rules.get(pipeline_type, {}).get("naming", {})
-
-        # Pattern check
-        pattern = type_rules.get("pattern")
+        pattern = self.naming.get("pattern")
         if pattern and not re.match(pattern, name):
-            errors.append(
-                f"Pipeline '{name}' does not match pattern for sub or master pipelines"
-            )
+            errors.append(f"Pipeline '{name}' does not match pattern '{pattern}'")
 
-        # Must contain check
-        must_contain = type_rules.get("must_contain")
-        if must_contain and must_contain not in name:
-            errors.append(f"Pipeline '{name}' must contain '{must_contain}'")
-
-        # Min parts check
-        sep = type_rules.get("separator", "_")
-        parts = name.split(sep)
-        min_parts = self.general_rules.get("min_parts", 0)
-        if len(parts) < min_parts:
-            errors.append(
-                f"Pipeline '{name}' should have at least {min_parts} parts separated by '{sep}'"
-            )
-
-        # Case check
-        case = type_rules.get("case")
+        # -----------------------
+        # Case
+        # -----------------------
+        case = self.naming.get("case")
         if case == "upper" and name != name.upper():
             errors.append(f"Pipeline '{name}' must be uppercase")
         elif case == "lower" and name != name.lower():
             errors.append(f"Pipeline '{name}' must be lowercase")
 
-        # Prefix check
-        prefix = type_rules.get("prefix")
+        # -----------------------
+        # Prefix
+        # -----------------------
+        prefix = self.naming.get("prefix")
         if prefix and not name.startswith(prefix):
             errors.append(f"Pipeline '{name}' must start with prefix '{prefix}'")
+
+        # -----------------------
+        # Separator / parts count
+        # -----------------------
+        sep = self.naming.get("separator", "_")
+        parts = name.split(sep)
+        min_parts = self.naming.get("min_separated_parts", 0)
+        max_parts = self.naming.get("max_separated_parts", float("inf"))
+        if not (min_parts <= len(parts) <= max_parts):
+            errors.append(
+                f"Pipeline '{name}' must have between {min_parts} and {max_parts} parts separated by '{sep}'"
+            )
 
         return errors, skipped
  
