@@ -11,7 +11,7 @@ FactoryLint is a Python CLI tool that lints Azure Data Factory (ADF) resources f
 pip install -e .
 
 # Run linting against sample ADF resources
-factorylint lint --config ./config.yml --resources ./df-sgbi-general-dev
+factorylint lint --config ./factorylint.yml --resources ./df-sgbi-general-dev
 
 # Initialize the output directory
 factorylint init
