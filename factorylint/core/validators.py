@@ -5,6 +5,24 @@ from factorylint.core.resources import ResourceType
 from typing import Tuple, List
 
 
+def _validate_names(names: List[str], naming: dict, entity_type: str) -> List[str]:
+    """Validate a list of names against a flat naming config (pattern, case, prefix)."""
+    errors = []
+    pattern = naming.get("pattern")
+    case = naming.get("case")
+    prefix = naming.get("prefix")
+    for name in names:
+        if pattern and not re.match(pattern, name):
+            errors.append(f"{entity_type} '{name}' does not match pattern '{pattern}'")
+        if case == "upper" and name != name.upper():
+            errors.append(f"{entity_type} '{name}' must be uppercase")
+        elif case == "lower" and name != name.lower():
+            errors.append(f"{entity_type} '{name}' must be lowercase")
+        if prefix and not name.startswith(prefix):
+            errors.append(f"{entity_type} '{name}' must start with prefix '{prefix}'")
+    return errors
+
+
 # =====================================================
 # Base Validator
 # =====================================================
@@ -45,6 +63,7 @@ class DatasetValidator(BaseValidator):
         self.naming = self.rules.get("naming", {})
         self.enabled = self.rules.get("enabled", True)
         self.description = self.rules.get("description", "")
+        self.param_rules = rules.get("parameters", {})
 
     def validate(self, dataset_file_path: str) -> Tuple[List[str], List[str]]:
         errors = []
@@ -123,6 +142,13 @@ class DatasetValidator(BaseValidator):
                         f"Allowed: {list(allowed_sources.values())}"
                     )
 
+        # -----------------------
+        # Parameters
+        # -----------------------
+        if self.param_rules.get("enabled", False):
+            params = dataset.get("properties", {}).get("parameters", {})
+            errors.extend(_validate_names(list(params.keys()), self.param_rules.get("naming", {}), "Parameter"))
+
         return errors, skipped
 
 
@@ -136,6 +162,8 @@ class PipelineValidator(BaseValidator):
         super().__init__(ResourceType.PIPELINE, rules)
         self.naming = self.rules.get("naming", {})
         self.enabled = self.rules.get("enabled", True)
+        self.param_rules = rules.get("parameters", {})
+        self.var_rules = rules.get("variables", {})
 
     def validate(self, pipeline_file_path: str) -> Tuple[List[str], List[str]]:
 
@@ -199,6 +227,20 @@ class PipelineValidator(BaseValidator):
             errors.append(
                 f"Pipeline '{name}' must have between {min_parts} and {max_parts} parts separated by '{sep}'"
             )
+
+        # -----------------------
+        # Parameters
+        # -----------------------
+        if self.param_rules.get("enabled", False):
+            params = pipeline.get("properties", {}).get("parameters", {})
+            errors.extend(_validate_names(list(params.keys()), self.param_rules.get("naming", {}), "Parameter"))
+
+        # -----------------------
+        # Variables
+        # -----------------------
+        if self.var_rules.get("enabled", False):
+            variables = pipeline.get("properties", {}).get("variables", {})
+            errors.extend(_validate_names(list(variables.keys()), self.var_rules.get("naming", {}), "Variable"))
 
         return errors, skipped
  

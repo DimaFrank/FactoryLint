@@ -187,28 +187,21 @@ resources:
       Integration Runtime names must start with "IR_" and include runtime type (e.g. SHIR, AZURE).
 
 parameters:
-  enabled: false
-  types: 
-    global:
-      naming:
-        prefix: "p_"
-        case: "lower"
-        pattern: "^[a-z_][a-z0-9_]*$"
-      description: >
-        Parameters should use lowercase with underscores, prefixed by 'p_'.
-    local:
-      naming:
-        prefix: "p_"
-        case: "lower"
-        pattern: "^[a-z_][a-z0-9_]*$"
-      description: >
-        Local parameters should use lowercase with underscores, prefixed by 'p_'.
+  enabled: true
+  naming:
+    prefix: "p_"
+    case: "lower"
+    pattern: "^[a-z_][a-z0-9_]*$"
+  description: >
+    Parameters must use lowercase with underscores, prefixed by 'p_'.
+    Applies to pipeline and dataset parameters.
 
 variables:
-  enabled: false
+  enabled: true
   naming:
     prefix: "v_"
     case: "lower"
     pattern: "^[a-z_][a-z0-9_]*$"
   description: >
-    Variables should use lowercase with underscores, prefixed by 'v_'.
+    Variables must use lowercase with underscores, prefixed by 'v_'.
+    Applies to pipeline variables.
