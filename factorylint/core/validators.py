@@ -229,6 +229,18 @@ class PipelineValidator(BaseValidator):
             )
 
         # -----------------------
+        # Allowed actions (last segment)
+        # -----------------------
+        allowed_actions = self.naming.get("allowed_actions", [])
+        if allowed_actions and parts:
+            action = parts[-1]
+            if action not in allowed_actions:
+                errors.append(
+                    f"Pipeline '{name}' has invalid action '{action}'. "
+                    f"Allowed: {allowed_actions}"
+                )
+
+        # -----------------------
         # Parameters
         # -----------------------
         if self.param_rules.get("enabled", False):

@@ -12,14 +12,23 @@ resources:
   pipelines:
     enabled: true
     description: >
-      Pipelines must follow a consistent naming convention.
+      Pipelines must follow: PL_<PROJECT>_<ENTITY>_<ACTION>
+      Example: PL_MES_ORDERS_INGEST, PL_SAPBW_MASTERDATA_ORCHESTRATE
     naming:
-      pattern: "^\\d{3}_\\d{2}_[A-Z]+_[A-Z][a-z0-9]*(?:[A-Z][a-z0-9]*)*$"
-      case: "mixed"
-      prefix: null
+      prefix: "PL_"
+      case: "upper"
       separator: "_"
+      pattern: "^PL_[A-Z0-9_]+$"
       min_separated_parts: 4
       max_separated_parts: 6
+      allowed_actions:
+        - INGEST
+        - TRANSFORM
+        - ORCHESTRATE
+        - LOAD
+        - COPY
+        - EXTRACT
+        - PROCESS
       description_required: true
       ignore_folder: "_Config"
 
