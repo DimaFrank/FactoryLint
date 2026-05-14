@@ -226,7 +226,6 @@ variables:
 
 annotations:
   enabled: true
-  required: true
   min_count: 3
   categories:
     domain:
