@@ -133,6 +133,7 @@ resources:
         - ORC
       min_separated_parts: 4
       max_separated_parts: 8
+      description_required: false
     description: >
       Dataset name structure:
       DS_<SOURCE>_<DETAIL>_<FORMAT>
@@ -162,6 +163,7 @@ resources:
       min_separated_parts: 2
       max_separated_parts: 5
       separator: "_"
+      description_required: false
     description: >
       Linked Services must start with "LS_" followed by a valid abbreviation (e.g. ADLS, SQL)
       and a descriptive suffix, all in uppercase.
@@ -186,6 +188,7 @@ resources:
         - MONTHLY
         - QUARTERLY
         - REALTIME
+      description_required: false
     description: >
       Triggers must follow: TR_<TYPE>_<FREQUENCY>_<DESCRIPTION>
       Example: TR_SCHEDULE_DAILY_MES_IOT
@@ -223,3 +226,37 @@ variables:
   description: >
     Variables must use lowercase with underscores, prefixed by 'v_'.
     Applies to pipeline variables.
+
+annotations:
+  enabled: true
+  min_count: 3
+  categories:
+    domain:
+      prefix: "domain:"
+      required: true
+      allowed_values:
+        - "domain:finance"
+        - "domain:supply-chain"
+        - "domain:hr"
+        - "domain:ops"
+        - "domain:mes"
+    owner:
+      prefix: "owner:"
+      required: true
+      pattern: "^owner:[a-z][a-z0-9-]+$"
+    tier:
+      prefix: "tier:"
+      required: true
+      allowed_values:
+        - "tier:1"
+        - "tier:2"
+        - "tier:3"
+    pii:
+      prefix: "pii:"
+      required: false
+      allowed_values:
+        - "pii:true"
+        - "pii:false"
+  applies_to:
+    - pipelines
+    - triggers
