@@ -1,6 +1,8 @@
 import json
 import re
 
+VALID_RESOURCE_TYPES = {"pipelines", "datasets", "linked_services", "triggers", "integration_runtimes"}
+
 def validate_regex(pattern: str) -> bool:
     try:
         re.compile(pattern)
@@ -9,8 +11,57 @@ def validate_regex(pattern: str) -> bool:
         return False
 
 
+def validate_annotations_config(annotations: dict) -> list:
+    """Validate the top-level annotations: block in the rules config."""
+    errors = []
+
+    if not isinstance(annotations, dict):
+        return ["'annotations' must be a dictionary"]
+
+    if not isinstance(annotations.get("enabled"), bool):
+        errors.append("annotations.enabled must be a boolean")
+
+    if "min_count" in annotations and not isinstance(annotations["min_count"], int):
+        errors.append("annotations.min_count must be an integer")
+
+    applies_to = annotations.get("applies_to", [])
+    if not isinstance(applies_to, list):
+        errors.append("annotations.applies_to must be a list")
+    else:
+        for rt in applies_to:
+            if rt not in VALID_RESOURCE_TYPES:
+                errors.append(f"annotations.applies_to contains unknown resource type '{rt}'")
+
+    categories = annotations.get("categories", {})
+    if not isinstance(categories, dict):
+        errors.append("annotations.categories must be a dictionary")
+    else:
+        for cat_name, cat_cfg in categories.items():
+            if not isinstance(cat_cfg, dict):
+                errors.append(f"annotations.categories.{cat_name} must be a dictionary")
+                continue
+            if "prefix" not in cat_cfg or not isinstance(cat_cfg["prefix"], str):
+                errors.append(f"annotations.categories.{cat_name} must have a 'prefix' string")
+            if not isinstance(cat_cfg.get("required", False), bool):
+                errors.append(f"annotations.categories.{cat_name}.required must be a boolean")
+            if "allowed_values" in cat_cfg:
+                if not isinstance(cat_cfg["allowed_values"], list):
+                    errors.append(f"annotations.categories.{cat_name}.allowed_values must be a list")
+            if "pattern" in cat_cfg:
+                if not isinstance(cat_cfg["pattern"], str):
+                    errors.append(f"annotations.categories.{cat_name}.pattern must be a string")
+                elif not validate_regex(cat_cfg["pattern"]):
+                    errors.append(f"annotations.categories.{cat_name}.pattern is not a valid regex: {cat_cfg['pattern']}")
+
+    return errors
+
+
 def validate_rules_config(config: dict) -> list:
     errors = []
+
+    # ---- Annotations (top-level) ----
+    if "annotations" in config:
+        errors.extend(validate_annotations_config(config["annotations"]))
 
     # ---- Pipeline ----
     if "Pipeline" in config:

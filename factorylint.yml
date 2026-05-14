@@ -223,3 +223,38 @@ variables:
   description: >
     Variables must use lowercase with underscores, prefixed by 'v_'.
     Applies to pipeline variables.
+
+annotations:
+  enabled: true
+  required: true
+  min_count: 3
+  categories:
+    domain:
+      prefix: "domain:"
+      required: true
+      allowed_values:
+        - "domain:finance"
+        - "domain:supply-chain"
+        - "domain:hr"
+        - "domain:ops"
+        - "domain:mes"
+    owner:
+      prefix: "owner:"
+      required: true
+      pattern: "^owner:[a-z][a-z0-9-]+$"
+    tier:
+      prefix: "tier:"
+      required: true
+      allowed_values:
+        - "tier:1"
+        - "tier:2"
+        - "tier:3"
+    pii:
+      prefix: "pii:"
+      required: false
+      allowed_values:
+        - "pii:true"
+        - "pii:false"
+  applies_to:
+    - pipelines
+    - triggers

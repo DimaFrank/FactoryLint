@@ -5,6 +5,81 @@ from factorylint.core.resources import ResourceType
 from typing import Tuple, List
 
 
+def _validate_annotations(annotations: List[str], rules: dict) -> List[str]:
+    """
+    Validate a list of ADF annotation strings against the top-level annotations config.
+
+    Each annotation is a full string like "domain:finance" or "owner:bob-smith".
+    Categories are matched by their configured prefix (e.g. "domain:").
+    """
+    errors = []
+
+    if not rules.get("enabled", False):
+        return errors
+
+    categories: dict = rules.get("categories", {})
+    applies_to = rules.get("applies_to", [])  # checked by callers before calling this
+
+    # ---- min_count ----
+    min_count = rules.get("min_count", 0)
+    if len(annotations) < min_count:
+        errors.append(
+            f"Resource must have at least {min_count} annotation(s), found {len(annotations)}"
+        )
+
+    # Build a map of prefix -> list of matching annotations for quick lookup
+    known_prefixes = {cfg["prefix"]: cat_name for cat_name, cfg in categories.items() if "prefix" in cfg}
+    prefix_to_annotations: dict[str, List[str]] = {p: [] for p in known_prefixes}
+    unknown: List[str] = []
+
+    for annotation in annotations:
+        matched = False
+        for prefix in known_prefixes:
+            if annotation.startswith(prefix):
+                prefix_to_annotations[prefix].append(annotation)
+                matched = True
+                break
+        if not matched:
+            unknown.append(annotation)
+
+    if unknown:
+        errors.append(f"Unknown annotation(s) not matching any configured category: {unknown}")
+
+    # ---- Per-category validation ----
+    for cat_name, cat_cfg in categories.items():
+        prefix = cat_cfg.get("prefix", "")
+        required = cat_cfg.get("required", False)
+        allowed_values = cat_cfg.get("allowed_values", [])
+        pattern = cat_cfg.get("pattern")
+
+        matches = prefix_to_annotations.get(prefix, [])
+
+        if required and not matches:
+            errors.append(
+                f"Required annotation category '{cat_name}' (prefix '{prefix}') is missing"
+            )
+            continue
+
+        if len(matches) > 1:
+            errors.append(
+                f"Annotation category '{cat_name}' must appear exactly once, found {len(matches)}: {matches}"
+            )
+            continue
+
+        for annotation in matches:
+            if allowed_values and annotation not in allowed_values:
+                errors.append(
+                    f"Annotation '{annotation}' is not an allowed value for category '{cat_name}'. "
+                    f"Allowed: {allowed_values}"
+                )
+            if pattern and not re.match(pattern, annotation):
+                errors.append(
+                    f"Annotation '{annotation}' does not match pattern '{pattern}' for category '{cat_name}'"
+                )
+
+    return errors
+
+
 def _validate_names(names: List[str], naming: dict, entity_type: str) -> List[str]:
     """Validate a list of names against a flat naming config (pattern, case, prefix)."""
     errors = []
@@ -164,6 +239,7 @@ class PipelineValidator(BaseValidator):
         self.enabled = self.rules.get("enabled", True)
         self.param_rules = rules.get("parameters", {})
         self.var_rules = rules.get("variables", {})
+        self.annotation_rules = rules.get("annotations", {})
 
     def validate(self, pipeline_file_path: str) -> Tuple[List[str], List[str]]:
 
@@ -253,6 +329,14 @@ class PipelineValidator(BaseValidator):
         if self.var_rules.get("enabled", False):
             variables = pipeline.get("properties", {}).get("variables", {})
             errors.extend(_validate_names(list(variables.keys()), self.var_rules.get("naming", {}), "Variable"))
+
+        # -----------------------
+        # Annotations
+        # -----------------------
+        applies_to = self.annotation_rules.get("applies_to", [])
+        if self.annotation_rules.get("enabled", False) and "pipelines" in applies_to:
+            annotations = pipeline.get("properties", {}).get("annotations", [])
+            errors.extend(_validate_annotations(annotations, self.annotation_rules))
 
         return errors, skipped
  
@@ -346,6 +430,7 @@ class TriggerValidator(BaseValidator):
         super().__init__(ResourceType.TRIGGER, rules)
         self.naming = self.rules.get("naming", {})
         self.enabled = self.rules.get("enabled", True)
+        self.annotation_rules = rules.get("annotations", {})
 
     def validate(self, trigger_file_path: str) -> Tuple[List[str], List[str]]:
         errors = []
@@ -416,5 +501,13 @@ class TriggerValidator(BaseValidator):
                     f"Trigger '{name}' has invalid frequency '{parts[2]}'. "
                     f"Allowed: {allowed_frequencies}"
                 )
+
+        # -----------------------
+        # Annotations
+        # -----------------------
+        applies_to = self.annotation_rules.get("applies_to", [])
+        if self.annotation_rules.get("enabled", False) and "triggers" in applies_to:
+            annotations = trigger.get("properties", {}).get("annotations", [])
+            errors.extend(_validate_annotations(annotations, self.annotation_rules))
 
         return errors, skipped
