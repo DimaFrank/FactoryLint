@@ -133,6 +133,7 @@ resources:
         - ORC
       min_separated_parts: 4
       max_separated_parts: 8
+      description_required: false
     description: >
       Dataset name structure:
       DS_<SOURCE>_<DETAIL>_<FORMAT>
@@ -162,6 +163,7 @@ resources:
       min_separated_parts: 2
       max_separated_parts: 5
       separator: "_"
+      description_required: false
     description: >
       Linked Services must start with "LS_" followed by a valid abbreviation (e.g. ADLS, SQL)
       and a descriptive suffix, all in uppercase.
@@ -186,6 +188,7 @@ resources:
         - MONTHLY
         - QUARTERLY
         - REALTIME
+      description_required: false
     description: >
       Triggers must follow: TR_<TYPE>_<FREQUENCY>_<DESCRIPTION>
       Example: TR_SCHEDULE_DAILY_MES_IOT

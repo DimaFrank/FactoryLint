@@ -151,6 +151,14 @@ class DatasetValidator(BaseValidator):
         name = dataset.get("name", "")
 
         # -----------------------
+        # Description Requirement
+        # -----------------------
+        desc_required = self.naming.get("description_required", False)
+        description = dataset.get("properties", {}).get("description")
+        if desc_required and (not description or not str(description).strip()):
+            errors.append(f"Dataset '{name}' must have a non-empty description")
+
+        # -----------------------
         # Check pattern
         # -----------------------
         pattern = self.naming.get("pattern")
@@ -265,7 +273,7 @@ class PipelineValidator(BaseValidator):
         # Description Requirement
         # -----------------------
         desc_required = self.naming.get("description_required", False)
-        description = pipeline.get("description")
+        description = pipeline.get("properties", {}).get("description")
         if desc_required and (not description or not str(description).strip()):
             errors.append(f"Pipeline '{name}' must have a non-empty description")
 
@@ -367,6 +375,14 @@ class LinkedServiceValidator(BaseValidator):
             return ["Linked Service name is missing"], skipped
 
         # -----------------------
+        # Description Requirement
+        # -----------------------
+        desc_required = self.naming.get("description_required", False)
+        description = linked_service.get("properties", {}).get("description")
+        if desc_required and (not description or not str(description).strip()):
+            errors.append(f"Linked Service '{name}' must have a non-empty description")
+
+        # -----------------------
         # Prefix
         # -----------------------
         prefix = self.naming.get("prefix")
@@ -445,6 +461,14 @@ class TriggerValidator(BaseValidator):
         if not name:
             errors.append("Trigger name is missing")
             return errors, skipped
+
+        # -----------------------
+        # Description Requirement
+        # -----------------------
+        desc_required = self.naming.get("description_required", False)
+        description = trigger.get("properties", {}).get("description")
+        if desc_required and (not description or not str(description).strip()):
+            errors.append(f"Trigger '{name}' must have a non-empty description")
 
         # -----------------------
         # Prefix
