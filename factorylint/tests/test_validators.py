@@ -149,8 +149,7 @@ class TestPipelineValidator:
     def test_description_required_present(self, tmp_path):
         resource = {
             "name": "PL_MES_ORDERS_INGEST",
-            "description": "my description",
-            "properties": {"activities": []},
+            "properties": {"activities": [], "description": "my description"},
         }
         path = _write(tmp_path, "with_desc.json", resource)
         rules = _pipeline_rules(description_required=True)
@@ -473,4 +472,147 @@ class TestTriggerValidator:
         path = _write(tmp_path, "disabled.json", resource)
         rules = {"resources": {"triggers": {"enabled": False, "naming": {}}}}
         errors, _ = TriggerValidator(rules).validate(path)
+        assert errors == []
+
+
+# ============================================================
+# Annotation validation (via PipelineValidator)
+# ============================================================
+
+def _pipeline_rules_with_annotations(**naming_overrides):
+    naming = {
+        "prefix": "PL_",
+        "case": "upper",
+        "separator": "_",
+        "pattern": "^PL_[A-Z0-9_]+$",
+        "min_separated_parts": 4,
+        "max_separated_parts": 6,
+        "allowed_actions": ["INGEST"],
+        "description_required": False,
+    }
+    naming.update(naming_overrides)
+    return {
+        "resources": {"pipelines": {"enabled": True, "naming": naming}},
+        "parameters": {"enabled": False},
+        "variables": {"enabled": False},
+        "annotations": {
+            "enabled": True,
+            "applies_to": ["pipelines"],
+            "min_count": 1,
+            "categories": {
+                "domain": {
+                    "prefix": "domain:",
+                    "required": True,
+                    "allowed_values": ["domain:finance", "domain:ops"],
+                },
+                "owner": {
+                    "prefix": "owner:",
+                    "required": False,
+                    "pattern": "^owner:[a-z][a-z0-9-]+$",
+                },
+            },
+        },
+    }
+
+
+class TestAnnotationValidation:
+
+    def test_valid_annotations_pass(self, tmp_path):
+        resource = {
+            "name": "PL_MES_ORDERS_INGEST",
+            "properties": {
+                "activities": [],
+                "annotations": ["domain:finance", "owner:alice"],
+            },
+        }
+        path = _write(tmp_path, "ok_ann.json", resource)
+        errors, _ = PipelineValidator(_pipeline_rules_with_annotations()).validate(path)
+        assert errors == []
+
+    def test_missing_required_annotation_category_reports_error(self, tmp_path):
+        resource = {
+            "name": "PL_MES_ORDERS_INGEST",
+            "properties": {
+                "activities": [],
+                "annotations": ["owner:alice"],  # missing required 'domain:'
+            },
+        }
+        path = _write(tmp_path, "missing_domain.json", resource)
+        errors, _ = PipelineValidator(_pipeline_rules_with_annotations()).validate(path)
+        assert any("domain" in e for e in errors)
+
+    def test_annotation_not_in_allowed_values_reports_error(self, tmp_path):
+        resource = {
+            "name": "PL_MES_ORDERS_INGEST",
+            "properties": {
+                "activities": [],
+                "annotations": ["domain:hr"],  # 'hr' not in allowed_values
+            },
+        }
+        path = _write(tmp_path, "bad_value.json", resource)
+        errors, _ = PipelineValidator(_pipeline_rules_with_annotations()).validate(path)
+        assert any("allowed" in e for e in errors)
+
+    def test_annotation_fails_pattern_reports_error(self, tmp_path):
+        resource = {
+            "name": "PL_MES_ORDERS_INGEST",
+            "properties": {
+                "activities": [],
+                "annotations": ["domain:finance", "owner:UPPERCASE"],
+            },
+        }
+        path = _write(tmp_path, "bad_pattern_ann.json", resource)
+        errors, _ = PipelineValidator(_pipeline_rules_with_annotations()).validate(path)
+        assert any("pattern" in e for e in errors)
+
+    def test_duplicate_annotation_category_reports_error(self, tmp_path):
+        resource = {
+            "name": "PL_MES_ORDERS_INGEST",
+            "properties": {
+                "activities": [],
+                "annotations": ["domain:finance", "domain:ops"],  # two 'domain:' entries
+            },
+        }
+        path = _write(tmp_path, "dup_ann.json", resource)
+        errors, _ = PipelineValidator(_pipeline_rules_with_annotations()).validate(path)
+        assert any("exactly once" in e for e in errors)
+
+    def test_below_min_count_reports_error(self, tmp_path):
+        rules = _pipeline_rules_with_annotations()
+        rules["annotations"]["min_count"] = 3
+        resource = {
+            "name": "PL_MES_ORDERS_INGEST",
+            "properties": {
+                "activities": [],
+                "annotations": ["domain:finance"],  # only 1 of required 3
+            },
+        }
+        path = _write(tmp_path, "few_ann.json", resource)
+        errors, _ = PipelineValidator(rules).validate(path)
+        assert any("at least" in e for e in errors)
+
+    def test_unknown_annotation_prefix_reports_error(self, tmp_path):
+        resource = {
+            "name": "PL_MES_ORDERS_INGEST",
+            "properties": {
+                "activities": [],
+                "annotations": ["domain:finance", "unknownprefix:value"],
+            },
+        }
+        path = _write(tmp_path, "unknown_prefix.json", resource)
+        errors, _ = PipelineValidator(_pipeline_rules_with_annotations()).validate(path)
+        assert any("Unknown annotation" in e for e in errors)
+
+    def test_annotations_disabled_skips_validation(self, tmp_path):
+        rules = _pipeline_rules_with_annotations()
+        rules["annotations"]["enabled"] = False
+        resource = {
+            "name": "PL_MES_ORDERS_INGEST",
+            "properties": {
+                "activities": [],
+                "annotations": [],  # empty but annotations disabled
+            },
+        }
+        path = _write(tmp_path, "disabled_ann.json", resource)
+        errors, _ = PipelineValidator(rules).validate(path)
         assert errors == []

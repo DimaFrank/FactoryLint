@@ -93,6 +93,11 @@ def lint(ctx, config_path, resources_path, fail_fast):
             continue
 
         resource_type = linter.identify_adf_resource(resource_json)
+
+        if resource_type == linter.ADFResourceType.UNKNOWN:
+            click.secho(f"⚠️  Skipping unrecognized resource: {file_path.relative_to(resources_path)}", fg="yellow")
+            continue
+
         resource_count[resource_type.value] += 1
 
         errors, skipped = linter.lint_resource(

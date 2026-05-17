@@ -398,3 +398,31 @@ class TestLintCommand:
             )
             assert "Pipeline" in result.output
             assert "Dataset" in result.output
+
+    # --- Unknown resource type (regression for KeyError: 'Unknown') ---
+
+    def test_lint_unknown_resource_skipped_without_crash(self, tmp_path):
+        """Files that cannot be identified as a known ADF resource type must be
+        gracefully skipped — not cause a KeyError crash."""
+        config_path = _write_config(tmp_path)
+        resources_path = tmp_path / "resources"
+        pipeline_dir = resources_path / "pipeline"
+        pipeline_dir.mkdir(parents=True)
+        # A JSON file with no recognizable ADF type markers
+        (pipeline_dir / "unknown_resource.json").write_text(
+            json.dumps({"name": "something", "properties": {}}),
+            encoding="utf-8",
+        )
+        runner = CliRunner()
+        with runner.isolated_filesystem(temp_dir=tmp_path):
+            result = runner.invoke(
+                cli,
+                [
+                    "lint",
+                    "--config", str(config_path),
+                    "--resources", str(resources_path),
+                ],
+            )
+        # Must not crash with exit code due to unhandled exception
+        assert result.exception is None
+        assert "Skipping unrecognized resource" in result.output
